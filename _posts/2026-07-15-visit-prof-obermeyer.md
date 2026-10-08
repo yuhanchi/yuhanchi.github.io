@@ -33,7 +33,7 @@ Sudden cardiac death is, in theory, preventable with defibrillators. But every y
 
 ## The Logical Structure of the Paper: A Chain of Falsification
 
-This paper isn't "we ran an experiment and the model worked." It reads closer to a mathematical proof: state a bold claim, then actively search for the strongest counterexample, and design one targeted experiment to close each gap — repeat until no gap remains. The result is a chain of eliminated alternative explanations. Below is that chain, compressed.
+This paper isn't "we ran an experiment and the model worked." It reads closer to a mathematical proof: state a bold claim, then actively search for the strongest counterexample, and design one targeted experiment to close each gap — repeat until every remaining gap is either closed or explicitly named. Unlike a proof, empirical work can never eliminate *all* alternatives; it can only make them implausible one by one. The result is a chain of eliminated alternative explanations. Below is that chain, compressed.
 
 ### Step 0 — The Problem
 
@@ -45,9 +45,11 @@ Claim to test: **a deep learning model reading raw ECG can out-predict LVEF.**
 
 Metric: AUC, defined as
 
-$$\text{AUC} = P(\text{score}(X_{\text{died}}) > \text{score}(X_{\text{survived}}))$$
+$$\text{AUC} = P\big(\text{score}(X_{\text{SCD}}) > \text{score}(X_{\text{no SCD}})\big)$$
 
-the probability that a random SCD case is scored higher than a random survivor. AUC is chosen over accuracy because the base rate is only ~0.6%/year — a trivial "never predict SCD" classifier hits 99.4% accuracy while being useless. AUC is robust to this imbalance because it measures ranking, not hit rate.
+the probability that a random SCD case is scored higher than a random patient who did not die of SCD (including people who died of other causes). AUC is chosen over accuracy because the base rate is only ~0.6%/year — a trivial "never predict SCD" classifier hits 99.4% accuracy while being useless. AUC does not depend on the base rate because it measures ranking, not hit rate.
+
+The flip side: AUC says nothing about the *operating point*, which is what a clinician acts on. The decision-relevant comparison with LVEF is in the abstract: the model's top 2.2% have a 7.0% annual SCD rate versus 4.6% for the 1.9% flagged by low LVEF — a similar-sized group with a higher event rate — and 86.1% of the model's high-risk patients are people LVEF would never flag. That, more than the AUC, is the direct test of the Step 0 claim.
 
 **Result:** AUC = 0.872, vs. 0.697 for the existing AHA/ACC risk score and 0.655 for a prior published ECG deep-learning model.
 
@@ -69,20 +71,20 @@ Fix: run the frozen model, with no fine-tuning, on an external US cohort — dif
 
 **Gap:** this still only answers "can it rank risk," not "is the signal specific to arrhythmia." A model that merely learned "this patient is generally very sick" would also rank well here — and would be clinically useless, since an ICD cannot treat generic illness.
 
-### Step 4 — Specificity: a placebo negative control (Taiwan)
+### Step 4 — Specificity: a negative-control outcome (Taiwan)
 
 The sharpest test in the paper. If the model only detects general sickness, it should perform equally well on *any* severe illness. Test it on a population where cardiac-arrest cases are chart-reviewed and split into:
 
 - arrhythmic arrest (n = 96) — the true target
-- non-arrhythmic arrest (stroke, respiratory failure, etc.) — the placebo
+- non-arrhythmic arrest (stroke, respiratory failure, etc.) — the negative control, playing the role of a placebo
 
-**Result:** AUC = 0.767 for arrhythmic arrest vs. AUC = 0.582 (near chance) for non-arrhythmic arrest, P < 0.001. The model fails exactly where a mechanism-specific model should fail — which is what makes it credible.
+**Result:** AUC = 0.767 for arrhythmic arrest vs. AUC = 0.582 (much weaker, though above chance) for non-arrhythmic arrest, P < 0.001. The model fails exactly where a mechanism-specific model should fail — which is what makes it credible.
 
 ### Step 5 — From ranking to causation: does the ICD actually help?
 
 Everything above answers "can we identify high-risk patients," not "does treating them work." That's a causal question, and there is no RCT here — only observational data, modeled with an OLS interaction term:
 
-$$\text{SCD} = \beta_0 + \beta_1(\text{high risk}) + \beta_2(\text{has ICD}) + \beta_3(\text{high risk} \times \text{has ICD}) + \text{controls}$$
+$$\text{death} = \beta_0 + \beta_1(\text{high risk}) + \beta_2(\text{has ICD}) + \beta_3(\text{high risk} \times \text{has ICD}) + \text{controls}$$
 
 $\beta_3$ is the quantity of interest: do patients who are both high-risk and have an ICD show *less* mortality than the two main effects alone would predict?
 
@@ -96,7 +98,7 @@ Since the confounding in Step 5 can't be removed, the authors instead check whet
 
 **Result:** the same regression recovers 67.5% — squarely inside the RCT-validated range.
 
-This doesn't prove Step 5's causal estimate is unconfounded; it proves the regression framework isn't systematically broken. A badly miscalibrated framework would be unlikely to reproduce a known RCT effect size by chance. This is calibration, not confounder removal — a distinction the authors are careful to state.
+This doesn't prove Step 5's causal estimate is unconfounded; it is evidence that the regression framework isn't systematically broken. A badly miscalibrated framework would be unlikely to reproduce a known RCT effect size by chance. This is calibration, not confounder removal — a distinction the authors are careful to state.
 
 ### Step 7 — Opening the black box
 
@@ -115,7 +117,7 @@ flowchart TD
     S1["Step 1 — Discrimination<br/>AUC = 0.872"]
     S2["Step 2 — Mechanism<br/>VF/VT tracking"]
     S3["Step 3 — Generalization<br/>US zero-shot transfer, AUC = 0.822"]
-    S4["Step 4 — Specificity<br/>Taiwan placebo control<br/>0.767 vs 0.582"]
+    S4["Step 4 — Specificity<br/>Taiwan negative control<br/>0.767 vs 0.582"]
     S5["Step 5 — Causation<br/>OLS interaction: ICD × high-risk<br/>54.4% lower mortality"]
     S6["Step 6 — Calibration<br/>same regression on LVEF<br/>recovers RCT range 50–88%"]
     S7["Step 7 — Interpretability<br/>generative model →<br/>novel aVL notch, fibrosis hypothesis"]
@@ -126,9 +128,27 @@ flowchart TD
     S3 -->|"gap: arrhythmia-specific, or just 'sick'?"| S4
     S4 -->|"specificity resolved"| S5
     S5 -->|"gap: observational, confounded"| S6
-    S6 -->|"framework validated"| S7
+    S6 -->|"framework calibrated"| S7
 ```
+
+### Where the chain is still weak
+
+Reading the chain as adversarially as the authors read their own claims, a few links deserve a second look.
+
+1. **The AUC drop is itself a finding.** Discrimination falls from 0.872 (SCD on death certificates) to 0.717 (VF/VT in Sweden) once the endpoint becomes the mechanism an ICD can treat. Part of the headline AUC is therefore likely predicting "cardiac-coded death" in general — exactly the Step 1 gap. The mechanistic number, not the headline one, is the honest estimate of what the model knows about arrhythmia.
+
+2. **A negative control is only as sharp as its outcome is predictable.** A low AUC for non-arrhythmic arrest shows specificity only if a generic "how sick is this patient" score *does* predict non-arrhythmic arrest well. If those arrests are hard to predict from anything, a weak AUC there is uninformative. The cleanest version pairs the ECG model with a sickness baseline (age, comorbidities) on both outcomes and shows the two models swap places.
+
+3. **The interaction term is a difference-in-differences.** Comparing ICD and non-ICD patients directly mixes the device's effect with "ICD patients get better care". The $\beta_2$ term absorbs that care effect *as long as it is the same in both risk groups*, and $\beta_3$ reads only the extra benefit in the high-risk group. So the remaining threat is narrower than "confounding" in general: it is selection that *differs by risk group* — for example, if physicians implant ICDs in high-ECG-risk patients who are otherwise unusually healthy.
+
+4. **Who actually received an ICD?** In routine care, ICDs are implanted mainly for low LVEF. But 86.1% of the model's high-risk patients have normal LVEF, so the high-risk ICD recipients behind $\beta_3$ are probably drawn largely from the LVEF-flagged minority. The 54.4% estimate may then say least about the very patients the model would newly send for an ICD. That question — does an ECG-guided ICD help people with normal LVEF? — needs a randomized trial.
+
+5. **The positive control transfers only partly.** For LVEF, ICD allocation follows guidelines built on LVEF itself; for the ECG score, allocation is unrelated to the score, which physicians never saw. The selection bias in the two regressions can therefore differ, and with an RCT range as wide as 50–88%, landing inside it is a reassuring sign, not a strong test.
+
+6. **High risk is still mostly no event.** A 7.0% annual rate means roughly 93 of every 100 flagged patients will not have SCD that year, while ICDs carry real costs (inappropriate shocks, infection, lead failure). The fair benchmark is the one the paper uses — current practice already accepts LVEF's 4.6% — but the decision ultimately turns on multi-year benefit against harm, which no AUC captures.
+
+None of this undercuts the paper's structure; it is the same method applied one level further. Each point names the next experiment, which is what a good chain of falsification is supposed to do.
 
 ### Why this structure is worth studying
 
-The mathematical habit on display is close to proof by contradiction paired with adversarial peer review: after every claim, ask "what is the strongest way this could still be wrong?", then design the one experiment that would falsify it. A less careful paper stops at Step 1 (AUC = 0.872) and calls it done. But a single high AUC proves almost nothing clinically — it can hide label noise, geographic overfitting, mechanism confounding, and selection bias, all at once. What makes this paper credible isn't model strength; it's that every one of those failure modes was hunted down and closed off, one at a time, with the authors stating plainly where each fix still falls short.
+The mathematical habit on display is close to proof by contradiction paired with adversarial peer review: after every claim, ask "what is the strongest way this could still be wrong?", then design the one experiment that would falsify it. A less careful paper stops at Step 1 (AUC = 0.872) and calls it done. But a single high AUC proves almost nothing clinically — it can hide label noise, geographic overfitting, mechanism confounding, and selection bias, all at once. What makes this paper credible isn't model strength; it's that every one of those failure modes was hunted down, one at a time — closed where it could be, and stated plainly where the fix still falls short.
