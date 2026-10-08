@@ -10,7 +10,7 @@ All candidates are listed at **[/styles/](https://yuhanchi.github.io/styles/)**;
 
 | # | Design | URL | Description |
 |---|--------|-----|-------------|
-| 1 | Scholar | [/scholar/](https://yuhanchi.github.io/scholar/) | Classic academic homepage — ivory paper, navy ink, EB Garamond with small-caps headings. |
+| 1 | Scholar | [/scholar/](https://yuhanchi.github.io/scholar/) | Classic academic homepage — clean white paper, navy ink, EB Garamond with small-caps headings. |
 | 2 | Article | [/article/](https://yuhanchi.github.io/article/) | Typeset like a LaTeX paper — Latin Modern, centered title block, an abstract, numbered sections. |
 | 3 | Tufte | [/tufte/](https://yuhanchi.github.io/tufte/) | Edward Tufte's handout style — ET Book on cream, a wide margin for the photo, dates and notes. |
 | 4 | Classic | [/classic/](https://yuhanchi.github.io/classic/) | The familiar researcher page — name and bio beside a photo, a tidy publication list, Lato and calm blue links. |

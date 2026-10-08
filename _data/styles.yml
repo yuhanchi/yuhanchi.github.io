@@ -6,8 +6,8 @@
 # ---- academic ----
 - id: scholar
   name: Scholar
-  blurb: Classic academic homepage — ivory paper, navy ink, EB Garamond with small-caps headings.
-  swatches: ["#faf8f2", "#1f2a3a", "#2c4a6e", "#e6e0d2"]
+  blurb: Classic academic homepage — clean white paper, navy ink, EB Garamond with small-caps headings.
+  swatches: ["#fefefc", "#1f2a3a", "#2c4a6e", "#e5e2da"]
   fonts: "family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=EB+Garamond+SC:wght@400;500"
 
 - id: article

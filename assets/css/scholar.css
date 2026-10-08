@@ -1,11 +1,11 @@
 /* Scholar — classic academic homepage: ivory, navy ink, EB Garamond, small caps */
 :root {
-  --bg: #faf8f2;
+  --bg: #fefefc;
   --text: #1f2a3a;
   --muted: #5d6675;
-  --line: #e2dccd;
+  --line: #e5e2da;
   --accent: #2c4a6e;
-  --code-bg: #f0ece2;
+  --code-bg: #f4f3ef;
   --selection: rgba(44, 74, 110, .16);
   --font-body: "EB Garamond", Garamond, "Iowan Old Style", Georgia, "Songti SC", "Noto Serif SC", serif;
   --font-head: var(--font-body);
