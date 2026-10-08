@@ -1,0 +1,37 @@
+{%- comment -%}
+  Shared variables for every styled page:
+    s      style id        st    style record from _data/styles.yml
+    base   URL prefix of the style ("/paper")
+    post   the post being shown (kind == post)
+    body   rendered post HTML
+{%- endcomment -%}
+{%- assign profile = site.data.profile -%}
+{%- assign s = page.style | default: site.default_style -%}
+{%- assign st = site.data.styles | where: "id", s | first -%}
+{%- assign base = site.baseurl | append: "/" | append: s -%}
+{%- assign post = nil -%}
+{%- if page.kind == "post" -%}
+  {%- if page.post_slug -%}
+    {%- assign post = site.posts | where: "slug", page.post_slug | first -%}
+    {%- assign body = post.content -%}
+  {%- else -%}
+    {%- assign post = page -%}
+    {%- assign body = content -%}
+  {%- endif -%}
+  {%- assign ptitle = post.title -%}
+  {%- assign words = body | strip_html | number_of_words -%}
+  {%- assign minutes = words | divided_by: 220 | plus: 1 -%}
+{%- elsif page.kind == "about" -%}
+  {%- assign ptitle = "About" -%}
+{%- elsif page.kind == "writing" -%}
+  {%- assign ptitle = "Writing" -%}
+{%- else -%}
+  {%- assign ptitle = page.title -%}
+{%- endif -%}
+{%- capture subpath -%}
+  {%- case page.kind -%}
+    {%- when "about" -%}about/
+    {%- when "writing" -%}writing/
+    {%- when "post" -%}writing/{{ post.slug }}/
+  {%- endcase -%}
+{%- endcapture -%}

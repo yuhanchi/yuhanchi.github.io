@@ -1,0 +1,76 @@
+name: Yuhan Chi
+native_name: 池裕涵
+pronunciation: /juːˈhɑːn tʃiː/
+tagline: Mathematics student at Fudan University
+short_bio: >-
+  I study mathematics at Fudan University and think about how to model,
+  reason, and make decisions under uncertainty.
+affiliation: School of Mathematical Sciences, Fudan University
+affiliation_url: https://math.fudan.edu.cn/mathen/main.htm
+location: Shanghai, China
+photo: /assets/img/yuhan.jpg
+photo_alt: Yuhan Chi sitting on a rock in front of Vernal Fall, Yosemite
+
+interests:
+  - Optimization, control, and reinforcement learning for sequential decision-making
+  - Mathematical modeling of real-world problems
+  - When AI decisions can be explained, and when they deserve trust
+
+links:
+  - name: Email
+    url: mailto:masterwuguicyh@163.com
+    label: masterwuguicyh@163.com
+  - name: GitHub
+    url: https://github.com/Chi-Shan0707
+    label: Chi-Shan0707
+  - name: X
+    url: https://x.com/shan_07_07
+    label: "@shan_07_07"
+
+projects:
+  - title: token-verification-mirage
+    url: https://github.com/Chi-Shan0707/token-verification-mirage
+    meta: Solo author · ICML 2026 AI4Math Workshop poster
+    summary: >-
+      A controlled evaluation of token-level verification signals for LLM math
+      reasoning. Protocol choices alone can shift reported AUROC by up to 0.18.
+    links:
+      - { name: Paper, url: "https://openreview.net/pdf?id=wRImV3kfR1" }
+      - { name: Code, url: "https://github.com/Chi-Shan0707/token-verification-mirage" }
+  - title: code-not-text
+    url: https://github.com/Chi-Shan0707/code-not-text
+    meta: Solo measurement study · 31,040 runs
+    summary: >-
+      Do cheap reasoning-trace features transfer across domains? Strong in math,
+      partial in science QA, weak for code correctness.
+    links:
+      - { name: Code, url: "https://github.com/Chi-Shan0707/code-not-text" }
+  - title: TinyLoRA-GRPO-Coder
+    url: https://github.com/Chi-Shan0707/TinyLoRA-GRPO-Coder
+    meta: Solo project · RL post-training
+    summary: >-
+      Tiny-parameter adaptation with GRPO for competitive-programming code
+      generation on Qwen2.5-Coder-3B, rewarded by actually compiling and running.
+    links:
+      - { name: Code, url: "https://github.com/Chi-Shan0707/TinyLoRA-GRPO-Coder" }
+
+publications:
+  - title: Token Verification Mirage
+    authors: Yuhan Chi
+    venue: ICML 2026 Workshop on AI for Math (AI4Math)
+    year: 2026
+    links:
+      - { name: Paper, url: "https://openreview.net/pdf?id=wRImV3kfR1" }
+      - { name: Code, url: "https://github.com/Chi-Shan0707/token-verification-mirage" }
+
+talks:
+  - title: "From Bandits to PPO: an RL prerequisite seminar"
+    venue: School of Mathematical Sciences, Fudan University
+    date: Apr 2026
+
+experience:
+  - when: Sep 2025 – now
+    what: Undergraduate, Information & Computational Science + AI (dual degree), Fudan University
+  - when: Jul – Aug 2026
+    what: Visiting student, Mechanical Systems Control Lab, UC Berkeley
+    url: https://msc.berkeley.edu/

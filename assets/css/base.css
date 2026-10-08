@@ -1,0 +1,171 @@
+/* Shared foundation for every design. Each design sets the variables below
+   in its own stylesheet and adds its own layout. */
+
+:root {
+  --bg: #fbfaf7;
+  --surface: #ffffff;
+  --text: #2a2a28;
+  --muted: #6f6d67;
+  --line: #e6e3db;
+  --accent: #5f7a5c;
+  --accent-soft: rgba(95, 122, 92, .14);
+  --code-bg: #f2efe8;
+  --selection: rgba(95, 122, 92, .22);
+
+  --font-body: ui-serif, Georgia, "Songti SC", "Noto Serif SC", serif;
+  --font-head: var(--font-body);
+  --font-ui: ui-sans-serif, -apple-system, "Segoe UI", "Helvetica Neue", "PingFang SC", "Noto Sans SC", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+
+  --fs: 1.0625rem;
+  --lh: 1.7;
+  --measure: 40rem;
+
+  /* syntax colours */
+  --syn-comment: #8d8a80;
+  --syn-keyword: #7b5e8c;
+  --syn-string: #5f7a5c;
+  --syn-number: #a5673f;
+  --syn-func: #3e6a8a;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: var(--fs);
+  line-height: var(--lh);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+::selection { background: var(--selection); }
+img { max-width: 100%; height: auto; display: block; }
+a { color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
+.sep { color: var(--muted); opacity: .7; }
+.native { font-weight: inherit; }
+
+/* Lists with no bullets */
+.post-list, .project-list, .pub-list { list-style: none; margin: 0; padding: 0; }
+
+/* ---------- long-form reading ---------- */
+.prose { max-width: var(--measure); overflow-wrap: break-word; }
+.prose > :first-child { margin-top: 0; }
+.prose p, .prose ul, .prose ol, .prose blockquote, .prose pre, .prose table, .prose figure, .prose .katex-display { margin: 0 0 1.25em; }
+.prose h2, .prose h3, .prose h4 {
+  font-family: var(--font-head);
+  line-height: 1.3;
+  margin: 2.2em 0 .7em;
+  font-weight: 600;
+}
+.prose h2 { font-size: 1.4em; }
+.prose h3 { font-size: 1.15em; }
+.prose h4 { font-size: 1em; }
+.prose a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: .2em;
+  text-decoration-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  transition: text-decoration-color .15s;
+}
+.prose a:hover { text-decoration-color: currentColor; }
+.prose ul, .prose ol { padding-left: 1.4em; }
+.prose li { margin: .35em 0; }
+.prose li > ul, .prose li > ol { margin: .35em 0 0; }
+.prose li::marker { color: var(--muted); }
+.prose strong { font-weight: 600; }
+.prose blockquote {
+  margin-left: 0;
+  padding: .1em 0 .1em 1.2em;
+  border-left: 2px solid var(--accent);
+  color: var(--muted);
+  font-style: italic;
+}
+.prose blockquote p:last-child { margin-bottom: 0; }
+.prose hr { border: 0; height: 1px; background: var(--line); margin: 2.5em 0; }
+.prose code {
+  font-family: var(--font-mono);
+  font-size: .86em;
+  background: var(--code-bg);
+  padding: .12em .36em;
+  border-radius: 4px;
+}
+.prose pre, .prose .highlight pre {
+  font-family: var(--font-mono);
+  font-size: .84rem;
+  line-height: 1.6;
+  background: var(--code-bg);
+  padding: 1rem 1.15rem;
+  border-radius: 8px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.prose pre code { background: none; padding: 0; font-size: inherit; border-radius: 0; }
+.prose div.highlighter-rouge { margin: 0 0 1.25em; }
+.prose div.highlighter-rouge pre { margin: 0; }
+.prose table { width: 100%; border-collapse: collapse; font-size: .92em; display: block; overflow-x: auto; }
+.prose th, .prose td { padding: .5em .8em; border-bottom: 1px solid var(--line); text-align: left; }
+.prose th { font-weight: 600; border-bottom-color: var(--muted); }
+.prose img { border-radius: 6px; }
+.prose figcaption { color: var(--muted); font-size: .88em; margin-top: .5em; }
+.prose .footnotes { margin-top: 3em; padding-top: 1em; border-top: 1px solid var(--line); font-size: .9em; color: var(--muted); }
+.prose .footnotes ol { padding-left: 1.2em; }
+.prose sup a, .prose a.reversefootnote { text-decoration: none; }
+.prose .katex-display { overflow-x: auto; overflow-y: hidden; padding: .2em 0; }
+.prose .katex { font-size: 1.06em; }
+
+/* syntax highlighting (rouge) */
+.highlight .c, .highlight .c1, .highlight .cm, .highlight .cs, .highlight .sd { color: var(--syn-comment); font-style: italic; }
+.highlight .k, .highlight .kd, .highlight .kn, .highlight .kr, .highlight .kc, .highlight .ow, .highlight .nb { color: var(--syn-keyword); }
+.highlight .s, .highlight .s1, .highlight .s2, .highlight .sb, .highlight .se { color: var(--syn-string); }
+.highlight .m, .highlight .mi, .highlight .mf, .highlight .mh { color: var(--syn-number); }
+.highlight .nf, .highlight .fm, .highlight .nc { color: var(--syn-func); }
+
+/* ---------- shared bits of the post page ---------- */
+.post-meta { color: var(--muted); }
+.post-nav { display: flex; justify-content: space-between; gap: 1.5rem; }
+.post-nav a { display: flex; flex-direction: column; text-decoration: none; max-width: 48%; }
+.post-nav-next { margin-left: auto; text-align: right; }
+.post-nav-label { font-size: .78rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.post-nav-title { color: var(--text); }
+.post-nav a:hover .post-nav-title { color: var(--accent); }
+
+/* ---------- about photo ---------- */
+.about-photo { margin: 0; }
+.about-photo img { width: 100%; object-fit: cover; }
+.about-photo figcaption { font-size: .8rem; color: var(--muted); margin-top: .5rem; }
+
+/* ---------- preview switcher (temporary) ---------- */
+.switcher {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  font: 500 12.5px/1 var(--font-ui);
+  color: #3b3b38;
+  background: rgba(255, 255, 255, .82);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(0, 0, 0, .08);
+  border-radius: 999px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, .08);
+}
+.switcher a { color: inherit; text-decoration: none; border-radius: 999px; padding: 7px 10px; white-space: nowrap; }
+.switcher .sw-arrow { font-size: 16px; padding: 4px 11px 6px; }
+.switcher a:hover { background: rgba(0, 0, 0, .06); }
+body { padding-bottom: 64px; }
+
+@media print {
+  .switcher, .nav, .site-footer, .post-nav { display: none !important; }
+  body { background: #fff; color: #000; padding: 0; }
+}

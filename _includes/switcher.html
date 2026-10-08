@@ -1,0 +1,11 @@
+{%- comment -%} Preview-only style switcher. Delete this include once a design is chosen. {%- endcomment -%}
+{%- assign all = site.data.styles -%}
+{%- for x in all -%}{%- if x.id == s -%}{%- assign idx = forloop.index0 -%}{%- endif -%}{%- endfor -%}
+{%- assign n = all.size -%}
+{%- assign pi = idx | plus: n | minus: 1 | modulo: n -%}
+{%- assign ni = idx | plus: 1 | modulo: n -%}
+<aside class="switcher" aria-label="Design previews">
+  <a class="sw-arrow" href="{{ site.baseurl }}/{{ all[pi].id }}/{{ subpath }}" title="Previous design: {{ all[pi].name }}" aria-label="Previous design">‹</a>
+  <a class="sw-name" href="{{ site.baseurl }}/" title="All designs">{{ idx | plus: 1 }}/{{ n }} · {{ st.name }}</a>
+  <a class="sw-arrow" href="{{ site.baseurl }}/{{ all[ni].id }}/{{ subpath }}" title="Next design: {{ all[ni].name }}" aria-label="Next design">›</a>
+</aside>

@@ -1,0 +1,19 @@
+{%- if page.kind == "home" -%}{%- assign hide_intro_name = true -%}{%- endif -%}
+<body class="s-dusk k-{{ page.kind }}">
+  <div class="wrap">
+    <header class="masthead">
+      <div class="masthead-bar">
+        <a class="brand" href="{{ base }}/">{{ profile.name }}</a>
+        {% include nav.html %}
+      </div>
+      {%- if page.kind == "home" %}
+      <h1 class="display">Yuhan <em>Chi</em><span class="display-native" lang="zh">{{ profile.native_name }}</span></h1>
+      {%- endif %}
+    </header>
+    <main id="main">
+      {% include main.html %}
+    </main>
+    {% include footer.html %}
+  </div>
+  {% include switcher.html %}
+</body>

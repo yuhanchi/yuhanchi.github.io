@@ -1,0 +1,7 @@
+{%- case page.kind -%}
+  {%- when "home" -%}{% include k/home.html %}
+  {%- when "about" -%}{% include k/about.html %}
+  {%- when "writing" -%}{% include k/writing.html %}
+  {%- when "post" -%}{% include k/post.html %}
+  {%- else -%}<div class="prose">{{ content }}</div>
+{%- endcase -%}

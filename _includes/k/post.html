@@ -1,0 +1,25 @@
+<article class="post">
+  <header class="post-header">
+    <p class="post-kicker"><a href="{{ base }}/writing/">←&nbsp;Writing</a></p>
+    <h1 class="post-title">{{ post.title }}</h1>
+    {%- if post.description %}<p class="post-lede">{{ post.description }}</p>{% endif %}
+    <p class="post-meta">
+      <time datetime="{{ post.date | date_to_xmlschema }}">{{ post.date | date: "%B %-d, %Y" }}</time>
+      <span class="sep" aria-hidden="true">·</span> {{ minutes }} min read
+      {% if post.tags.size > 0 %}<span class="sep" aria-hidden="true">·</span> {% for t in post.tags %}<span class="tag">{{ t }}</span>{% unless forloop.last %}, {% endunless %}{% endfor %}{% endif %}
+    </p>
+  </header>
+  <div class="prose">
+    {{ body }}
+  </div>
+  <footer class="post-footer">
+    <nav class="post-nav" aria-label="More posts">
+      {%- if post.previous %}
+      <a class="post-nav-prev" href="{{ base }}/writing/{{ post.previous.slug }}/"><span class="post-nav-label">Older</span><span class="post-nav-title">{{ post.previous.title }}</span></a>
+      {%- else %}<span></span>{% endif %}
+      {%- if post.next %}
+      <a class="post-nav-next" href="{{ base }}/writing/{{ post.next.slug }}/"><span class="post-nav-label">Newer</span><span class="post-nav-title">{{ post.next.title }}</span></a>
+      {%- endif %}
+    </nav>
+  </footer>
+</article>

@@ -1,0 +1,118 @@
+/* Stone — Swiss grid on warm grey, big type, one olive accent */
+:root {
+  --bg: #f1f0ec;
+  --surface: #f8f7f4;
+  --text: #1e1e1c;
+  --muted: #6f6e68;
+  --line: #d9d7cf;
+  --accent: #66702f;
+  --code-bg: #e6e4dd;
+  --selection: rgba(107, 117, 54, .2);
+  --font-head: "Inter Tight", "Inter", "Helvetica Neue", Helvetica, Arial, "PingFang SC", "Noto Sans SC", sans-serif;
+  --font-body: "Inter", "Helvetica Neue", Helvetica, Arial, "PingFang SC", "Noto Sans SC", sans-serif;
+  --fs: 1.02rem;
+  --lh: 1.7;
+  --measure: 40rem;
+  --syn-keyword: #66702f;
+  --syn-string: #6a6a3a;
+  --syn-func: #3f5d7a;
+}
+.wrap { max-width: 76rem; margin: 0 auto; padding: 2rem 2.5rem 1rem; }
+.masthead { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 0 1.5rem; align-items: start; padding-bottom: 1.25rem; border-bottom: 2px solid var(--text); }
+.brand { grid-column: 1 / span 8; font-family: var(--font-head); font-weight: 600; font-size: 1.1rem; letter-spacing: -.01em; text-decoration: none; }
+.brand-big { display: block; font-size: clamp(4rem, 13vw, 10.5rem); line-height: .86; letter-spacing: -.055em; font-weight: 600; }
+.nav { grid-column: 9 / span 4; display: flex; justify-content: flex-end; gap: 1.5rem; font-family: var(--font-head); font-weight: 500; font-size: .95rem; }
+.nav a { text-decoration: none; color: var(--muted); }
+.nav a:hover { color: var(--text); }
+.nav a[aria-current] { color: var(--text); box-shadow: inset 0 -2px 0 var(--accent); }
+#main { padding-top: 3rem; }
+
+.home { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 0 1.5rem; }
+.home > * { grid-column: 1 / -1; }
+.intro { grid-column: 4 / span 7; margin-bottom: 4.5rem; }
+.intro-lede { font-family: var(--font-head); font-size: 1.85rem; line-height: 1.25; letter-spacing: -.02em; font-weight: 500; margin: 0 0 1rem; }
+.intro-note { color: var(--muted); margin: 0; max-width: 36rem; }
+.intro-note a, .more a, .project-links a, .pub-links a { color: var(--accent); text-decoration: none; font-weight: 500; }
+.intro-note a:hover, .more a:hover, .project-links a:hover, .pub-links a:hover { text-decoration: underline; text-underline-offset: .2em; }
+
+.block { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 0 1.5rem; border-top: 2px solid var(--text); padding-top: .9rem; margin-bottom: 4rem; }
+.block > * { grid-column: 4 / -1; }
+.block-title { grid-column: 1 / span 3; grid-row: 1 / span 5; font-family: var(--font-head); font-size: 1.05rem; font-weight: 600; margin: 0; }
+.block-title::before { color: var(--accent); margin-right: .5rem; font-variant-numeric: tabular-nums; }
+.block-writing .block-title::before { content: "01"; }
+.block-work .block-title::before { content: "02"; }
+.block-pubs .block-title::before { content: "03"; }
+.more { margin: 1rem 0 0; font-size: .9rem; }
+
+.post-item { display: grid; grid-template-columns: 9rem 1fr; gap: .25rem 1.5rem; padding: .85rem 0; border-bottom: 1px solid var(--line); align-items: baseline; }
+.post-item:first-child { padding-top: 0; }
+.post-link { grid-column: 2; grid-row: 1; font-family: var(--font-head); font-size: 1.35rem; font-weight: 500; letter-spacing: -.02em; line-height: 1.25; text-decoration: none; }
+.post-link:hover { color: var(--accent); }
+.post-date { grid-column: 1; grid-row: 1; color: var(--muted); font-size: .85rem; font-variant-numeric: tabular-nums; }
+.post-excerpt { grid-column: 2; margin: 0; color: var(--muted); font-size: .93rem; }
+
+.project-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.5rem; }
+.project { border-top: 1px solid var(--line); padding-top: .9rem; display: flex; flex-direction: column; }
+.project:first-child, .project:nth-child(2), .project:nth-child(3) { border-top: 0; padding-top: 0; }
+.project-title { font-family: var(--font-head); font-size: 1.05rem; font-weight: 600; letter-spacing: -.01em; margin: 0; overflow-wrap: anywhere; }
+.project-title a { text-decoration: none; }
+.project-title a:hover { color: var(--accent); }
+.project-meta { color: var(--muted); font-size: .8rem; margin: .2rem 0 .6rem; }
+.project-summary { margin: 0 0 .5rem; font-size: .92rem; flex: 1; }
+.project-links { margin: 0; font-size: .85rem; }
+.pub { display: flex; flex-direction: column; margin-bottom: 1.25rem; }
+.pub-title { font-family: var(--font-head); font-weight: 600; font-size: 1.1rem; letter-spacing: -.01em; }
+.pub-authors, .pub-venue { color: var(--muted); font-size: .9rem; }
+.pub-links { font-size: .87rem; }
+
+.page-header, .about-header { margin-bottom: 3rem; }
+.page-title { font-family: var(--font-head); font-weight: 600; font-size: clamp(3rem, 8vw, 5.5rem); line-height: .95; letter-spacing: -.045em; margin: 0 0 .8rem; }
+.page-lede { color: var(--muted); margin: 0; }
+.year { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 0 1.5rem; border-top: 2px solid var(--text); padding-top: .9rem; margin-bottom: 3rem; }
+.year > * { grid-column: 4 / -1; }
+.year-title { grid-column: 1 / span 3; font-family: var(--font-head); font-size: 1.05rem; font-weight: 600; margin: 0; color: var(--accent); }
+.writing .post-item { grid-template-columns: 5rem 1fr; }
+
+.about { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 0 1.5rem; align-items: start; }
+.about-header { grid-column: 1 / -1; }
+.about-photo { grid-column: 1 / span 3; position: sticky; top: 2rem; }
+.about-photo img { aspect-ratio: 3 / 4; object-position: 50% 70%; filter: grayscale(.15); }
+.about-body { grid-column: 5 / span 7; }
+.about-body h2 { font-size: 1.05rem; padding-top: .8rem; border-top: 2px solid var(--text); letter-spacing: -.01em; }
+
+.post { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 0 1.5rem; }
+.post > * { grid-column: 4 / span 7; }
+.post-header { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 0 1.5rem; margin-bottom: 3rem; }
+.post-header > * { grid-column: 4 / span 8; }
+.post-kicker { grid-column: 1 / span 3; grid-row: 1 / span 3; margin: .6rem 0 0; font-size: .9rem; }
+.post-kicker a { color: var(--muted); text-decoration: none; }
+.post-kicker a:hover { color: var(--accent); }
+.post-header .post-title { font-family: var(--font-head); font-weight: 600; font-size: clamp(2.4rem, 5vw, 3.6rem); line-height: 1.02; letter-spacing: -.04em; margin: 0 0 1.1rem; }
+.post-lede { font-family: var(--font-head); font-size: 1.3rem; line-height: 1.4; letter-spacing: -.01em; color: var(--muted); margin: 0 0 1.2rem; }
+.post-meta { font-size: .85rem; margin: 0; }
+.prose h2, .prose h3 { font-family: var(--font-head); letter-spacing: -.02em; }
+.prose h2 { font-size: 1.5em; }
+.prose blockquote { border-left: 0; padding-left: 0; font-family: var(--font-head); font-style: normal; font-size: 1.35em; line-height: 1.35; color: var(--accent); letter-spacing: -.01em; }
+.post-footer { margin-top: 4rem; padding-top: 1rem; border-top: 2px solid var(--text); }
+
+.site-footer { margin-top: 6rem; padding: 1rem 0 1.5rem; border-top: 2px solid var(--text); display: flex; justify-content: space-between; flex-wrap: wrap; gap: .5rem; font-size: .85rem; color: var(--muted); }
+.site-footer p { margin: 0; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); }
+
+@media (max-width: 860px) {
+  .wrap { padding: 1.25rem 1.25rem 1rem; }
+  .masthead { grid-template-columns: 1fr; row-gap: 1rem; }
+  .brand, .nav { grid-column: 1; }
+  .nav { justify-content: flex-start; }
+  .home, .block, .year, .about, .post, .post-header { grid-template-columns: minmax(0, 1fr); }
+  .home > *, .intro, .block > *, .block-title, .year > *, .year-title, .about > *, .post > *, .post-header > *, .post-kicker { grid-column: 1 !important; grid-row: auto !important; }
+  .block-title, .year-title { margin-bottom: 1rem; }
+  .project-list { grid-template-columns: 1fr; }
+  .project:nth-child(2), .project:nth-child(3) { border-top: 1px solid var(--line); padding-top: .9rem; }
+  .post-item, .writing .post-item { grid-template-columns: 1fr; }
+  .post-link, .post-date, .post-excerpt { grid-column: 1; grid-row: auto; }
+  .about-photo { position: static; max-width: 15rem; margin-bottom: 2rem; }
+  .post-kicker { margin: 0 0 1rem; }
+  .intro-lede { font-size: 1.45rem; }
+}

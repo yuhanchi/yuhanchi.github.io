@@ -1,0 +1,16 @@
+<ul class="pub-list">
+  {%- for pb in profile.publications %}
+  <li class="pub">
+    <span class="pub-title">{{ pb.title }}</span>
+    <span class="pub-authors">{{ pb.authors }}</span>
+    <span class="pub-venue">{{ pb.venue }}, {{ pb.year }}</span>
+    <span class="pub-links">{% for l in pb.links %}<a href="{{ l.url }}">{{ l.name }}</a>{% unless forloop.last %}<span class="sep" aria-hidden="true"> · </span>{% endunless %}{% endfor %}</span>
+  </li>
+  {%- endfor %}
+  {%- for t in profile.talks %}
+  <li class="pub talk">
+    <span class="pub-title">{{ t.title }}</span>
+    <span class="pub-venue">Talk · {{ t.venue }}, {{ t.date }}</span>
+  </li>
+  {%- endfor %}
+</ul>

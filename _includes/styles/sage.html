@@ -1,0 +1,25 @@
+{%- assign hide_intro_name = true -%}
+<body class="s-sage k-{{ page.kind }}">
+  <div class="layout">
+    <aside class="sidebar">
+      <a class="brand" href="{{ base }}/">
+        <span class="brand-name">{{ profile.name }}</span>
+        <span class="brand-native" lang="zh">{{ profile.native_name }}</span>
+      </a>
+      <p class="brand-tag">{{ profile.tagline }}</p>
+      {% include nav.html %}
+      <ul class="side-links">
+        {%- for l in profile.links %}
+        <li><a href="{{ l.url }}">{{ l.name }}</a></li>
+        {%- endfor %}
+      </ul>
+    </aside>
+    <div class="content">
+      <main id="main">
+        {% include main.html %}
+      </main>
+      {% include footer.html %}
+    </div>
+  </div>
+  {% include switcher.html %}
+</body>

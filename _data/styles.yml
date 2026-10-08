@@ -1,0 +1,63 @@
+# Every design variant. Each one lives at /<id>/ and is rendered by
+# _includes/styles/<id>.html + assets/css/<id>.css.
+# After editing this list or adding posts, run: python3 scripts/make_previews.py
+
+- id: paper
+  name: Paper
+  blurb: A single quiet column of serif text on warm ivory, like a well-set essay.
+  swatches: ["#f8f5ee", "#2b2925", "#5f7a5c", "#e7e1d4"]
+  fonts: "family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400"
+
+- id: sage
+  name: Sage
+  blurb: A calm sidebar layout in pale sage and soft green, sans-serif with serif reading pages.
+  swatches: ["#f2f4ef", "#263027", "#5e8466", "#dfe6db"]
+  fonts: "family=Inter:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400"
+
+- id: mist
+  name: Mist
+  blurb: Cool grey-blue and generous white space; clean lists separated by hairlines.
+  swatches: ["#f5f7f9", "#24303b", "#56789a", "#e1e7ed"]
+  fonts: "family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Serif:ital,wght@0,400;0,500;1,400"
+
+- id: linen
+  name: Linen
+  blurb: Sand and terracotta with an elegant Garamond display face and a split home page.
+  swatches: ["#f6f1e9", "#3a302a", "#a9654a", "#e8ddcd"]
+  fonts: "family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Mulish:ital,wght@0,400;0,600;1,400"
+
+- id: forest
+  name: Forest
+  blurb: A soft dark theme — deep green-charcoal, cream text and moss accents. Easy on the eyes at night.
+  swatches: ["#1c211e", "#dfe3d6", "#a7c296", "#2a312c"]
+  fonts: "family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&family=Inter:wght@400;500"
+
+- id: ledger
+  name: Ledger
+  blurb: A structured index with section labels in the margin, monospace details and an ochre accent.
+  swatches: ["#fbfaf6", "#22211f", "#a8823a", "#ebe7dc"]
+  fonts: "family=IBM+Plex+Mono:wght@400;500&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400"
+
+- id: washi
+  name: Washi
+  blurb: Japanese-inspired restraint — rice-paper tones, indigo ink, Mincho type and lots of breathing room.
+  swatches: ["#f6f3ea", "#2c2a27", "#3d5b74", "#e6e0d1"]
+  fonts: "family=Shippori+Mincho:wght@400;500;600"
+
+- id: clay
+  name: Clay
+  blurb: Warm and friendly — rounded soft cards, a peach-clay accent and a gentle sans-serif.
+  swatches: ["#faf6f1", "#3b3330", "#bf7a58", "#ffffff"]
+  fonts: "family=Figtree:ital,wght@0,400;0,500;0,600;1,400&family=Lora:ital,wght@0,400;0,500;1,400"
+
+- id: dusk
+  name: Dusk
+  blurb: Muted lavender-grey with a large serif masthead; modern and editorial.
+  swatches: ["#f4f2f5", "#2d2a33", "#76689a", "#e4e0e9"]
+  fonts: "family=Instrument+Serif:ital@0;1&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;1,400"
+
+- id: stone
+  name: Stone
+  blurb: Swiss-style grid on warm grey — big typographic name, strict alignment, one olive accent.
+  swatches: ["#f1f0ec", "#1e1e1c", "#6b7536", "#dcdad3"]
+  fonts: "family=Inter+Tight:wght@400;500;600;700&family=Inter:ital,wght@0,400;0,500;1,400"

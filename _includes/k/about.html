@@ -1,0 +1,13 @@
+<article class="about">
+  <header class="about-header">
+    <h1 class="page-title">About</h1>
+  </header>
+  <figure class="about-photo">
+    <img src="{{ profile.photo | relative_url }}" alt="{{ profile.photo_alt }}" width="900" height="1200" decoding="async">
+    <figcaption>Vernal Fall, Yosemite</figcaption>
+  </figure>
+  <div class="about-body prose">
+    {%- capture about_md %}{% include about.md %}{% endcapture %}
+    {{ about_md | markdownify }}
+  </div>
+</article>

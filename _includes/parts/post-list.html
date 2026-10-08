@@ -1,0 +1,13 @@
+{%- comment -%} params: limit, excerpt (true/false) {%- endcomment -%}
+{%- assign plimit = include.limit | default: 1000 -%}
+<ul class="post-list">
+  {%- for p in site.posts limit: plimit %}
+  <li class="post-item">
+    <a class="post-link" href="{{ base }}/writing/{{ p.slug }}/">{{ p.title }}</a>
+    <time class="post-date" datetime="{{ p.date | date_to_xmlschema }}">{{ p.date | date: "%b %-d, %Y" }}</time>
+    {%- if include.excerpt and p.description %}
+    <p class="post-excerpt">{{ p.description }}</p>
+    {%- endif %}
+  </li>
+  {%- endfor %}
+</ul>

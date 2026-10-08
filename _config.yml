@@ -1,0 +1,36 @@
+title: Yuhan Chi
+description: >-
+  Yuhan Chi (池裕涵) — undergraduate at the School of Mathematical Sciences,
+  Fudan University. Optimization, control, and decision-making under uncertainty.
+url: https://yuhanchi.github.io
+baseurl: ""
+lang: en
+
+# The style used for canonical post URLs (/posts/<slug>/).
+# Once a final design is chosen, set it here.
+default_style: paper
+
+markdown: kramdown
+kramdown:
+  input: GFM
+  hard_wrap: false
+  syntax_highlighter: rouge
+  math_engine: mathjax
+
+permalink: /posts/:slug/
+timezone: Asia/Shanghai
+
+defaults:
+  - scope:
+      path: ""
+      type: posts
+    values:
+      layout: default
+      kind: post
+
+exclude:
+  - README.md
+  - scripts/
+  - Gemfile
+  - Gemfile.lock
+  - vendor/

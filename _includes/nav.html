@@ -1,0 +1,5 @@
+<nav class="nav" aria-label="Main">
+  <a href="{{ base }}/" {% if page.kind == "home" %}aria-current="page"{% endif %}>Home</a>
+  <a href="{{ base }}/writing/" {% if page.kind == "writing" or page.kind == "post" %}aria-current="page"{% endif %}>Writing</a>
+  <a href="{{ base }}/about/" {% if page.kind == "about" %}aria-current="page"{% endif %}>About</a>
+</nav>
