@@ -6,8 +6,7 @@ url: https://yuhanchi.github.io
 baseurl: ""
 lang: en
 
-# The style used for canonical post URLs (/posts/<slug>/).
-# Once a final design is chosen, set it here.
+# The site's design (see _data/styles.yml).
 default_style: scholar
 
 markdown: kramdown
@@ -30,7 +29,6 @@ defaults:
 
 exclude:
   - README.md
-  - scripts/
   - Gemfile
   - Gemfile.lock
   - vendor/

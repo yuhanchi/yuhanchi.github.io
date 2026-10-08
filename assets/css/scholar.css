@@ -14,7 +14,7 @@
   --lh: 1.6;
   --page: 54rem;
   --measure: 42rem;
-  --photo-w: 12.5rem;
+  --photo-w: 15rem;
 }
 .masthead { padding-bottom: .7rem; border-bottom: 1px solid var(--accent); }
 .brand { font-family: var(--font-sc); font-weight: 500; font-size: 1.3rem; letter-spacing: .04em; color: var(--accent); }
@@ -35,3 +35,4 @@
 .prose h2 { font-weight: 600; }
 .prose blockquote { border-left-color: var(--accent); }
 .year-title { font-family: var(--font-sc); font-weight: 500; color: var(--accent); }
+@media (max-width: 680px) { .profile-photo { width: 13rem; } }

@@ -1,6 +1,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{% if page.kind == "home" %}{{ profile.name }} · {{ profile.native_name }}{% else %}{{ ptitle }} · {{ profile.name }}{% endif %}</title>
+<title>{% if page.kind == "about" %}{{ profile.name }} · {{ profile.native_name }}{% else %}{{ ptitle }} · {{ profile.name }}{% endif %}</title>
 {%- if post and post.description %}
 <meta name="description" content="{{ post.description | strip_html | escape }}">
 {%- else %}
