@@ -7,7 +7,7 @@
     {%- if pb.summary and show_pub_summary != false %}
     <span class="pub-summary">{{ pb.summary }}</span>
     {%- endif %}
-    <span class="pub-links">{% for l in pb.links %}<a href="{{ l.url }}">{{ l.name }}</a>{% endfor %}</span>
+    <span class="pub-links">{% for l in pb.links %}<a href="{{ l.url | relative_url }}">{{ l.name }}</a>{% endfor %}</span>
   </li>
   {%- endfor %}
 </ol>
