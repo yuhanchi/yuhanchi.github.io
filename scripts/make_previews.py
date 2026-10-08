@@ -2,9 +2,9 @@
 """Generate the per-design stub pages.
 
 For every design in _data/styles.yml this writes
-  <id>/index.md          home
-  <id>/about.md          about (the only page with the photo)
+  <id>/index.md          about — the entry page (the only page with the photo)
   <id>/writing.md        post archive
+  <id>/cv.md             CV
   <id>/writing/<slug>.md one page per post in _posts/
 Stubs contain front matter only; all content comes from _includes/ and _posts/.
 Run again after adding, renaming or deleting posts or designs.
@@ -29,8 +29,10 @@ for st in styles:
     d = root / sid
     if (d / "writing").exists():
         shutil.rmtree(d / "writing")
-    stub(d / "index.md", style=sid, kind="home", permalink=f"/{sid}/")
-    stub(d / "about.md", style=sid, kind="about", permalink=f"/{sid}/about/")
+    for old in ("about.md",):
+        (d / old).unlink(missing_ok=True)
+    stub(d / "index.md", style=sid, kind="about", permalink=f"/{sid}/")
+    stub(d / "cv.md", style=sid, kind="cv", permalink=f"/{sid}/cv/")
     stub(d / "writing.md", style=sid, kind="writing", permalink=f"/{sid}/writing/")
     for slug in slugs:
         stub(d / "writing" / f"{slug}.md", style=sid, kind="post",

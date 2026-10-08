@@ -1,13 +1,14 @@
-{%- assign hide_intro_name = true -%}
 <body class="s-washi k-{{ page.kind }}">
-  <header class="masthead">
-    <a class="seal" href="{{ base }}/" aria-label="{{ profile.name }} — home"><span lang="zh">池</span></a>
-    <a class="brand" href="{{ base }}/">{{ profile.name }}</a>
-    {% include nav.html %}
-  </header>
-  <main id="main" class="wrap">
-    {% include main.html %}
-  </main>
-  <div class="wrap">{% include footer.html %}</div>
+  <div class="wrap">
+    <header class="masthead">
+      <a class="seal" href="{{ base }}/" aria-label="{{ profile.name }}"><span lang="zh">池</span></a>
+      <a class="brand" href="{{ base }}/">{{ profile.name }}</a>
+      {% include nav.html %}
+    </header>
+    <main id="main">
+      {% include main.html %}
+    </main>
+    {% include footer.html %}
+  </div>
   {% include switcher.html %}
 </body>

@@ -1,25 +1,30 @@
 name: Yuhan Chi
 native_name: 池裕涵
 pronunciation: /juːˈhɑːn tʃiː/
-tagline: Mathematics student at Fudan University
-short_bio: >-
-  I study mathematics at Fudan University and think about how to model,
-  reason, and make decisions under uncertainty.
+role: Undergraduate student
 affiliation: School of Mathematical Sciences, Fudan University
+affiliation_short: Fudan University
 affiliation_url: https://math.fudan.edu.cn/mathen/main.htm
 location: Shanghai, China
+short_bio: >-
+  Undergraduate in mathematics at Fudan University, working on reinforcement
+  learning, generative models, and decision-making under uncertainty.
 photo: /assets/img/yuhan.jpg
-photo_alt: Yuhan Chi sitting on a rock in front of Vernal Fall, Yosemite
+photo_alt: Yuhan Chi at Vernal Fall, Yosemite
+cv_pdf: /files/Yuhan_Chi_CV.pdf
 
-interests:
-  - Optimization, control, and reinforcement learning for sequential decision-making
-  - Mathematical modeling of real-world problems
-  - When AI decisions can be explained, and when they deserve trust
+interests: >-
+  Optimization, control, and reinforcement learning for sequential
+  decision-making and generative models; mathematical modeling for real-world
+  problems.
 
 links:
   - name: Email
     url: mailto:masterwuguicyh@163.com
     label: masterwuguicyh@163.com
+  - name: CV
+    url: /files/Yuhan_Chi_CV.pdf
+    label: CV (PDF)
   - name: GitHub
     url: https://github.com/Chi-Shan0707
     label: Chi-Shan0707
@@ -27,50 +32,81 @@ links:
     url: https://x.com/shan_07_07
     label: "@shan_07_07"
 
-projects:
-  - title: token-verification-mirage
-    url: https://github.com/Chi-Shan0707/token-verification-mirage
-    meta: Solo author · ICML 2026 AI4Math Workshop poster
+publications:
+  - title: "Calibrating What Behavior Can Identify: Conformal Reward Sets for Inverse Reinforcement Learning"
+    short: CP-IRL
+    authors: Yuhan Chi
+    venue: NeurIPS 2026 Workshop on Physical Understanding for Decision-Making (PUDM)
+    venue_short: NeurIPS 2026 Workshop (PUDM)
+    year: 2026
+    note: Poster
     summary: >-
-      A controlled evaluation of token-level verification signals for LLM math
-      reasoning. Protocol choices alone can shift reported AUROC by up to 0.18.
+      Adapts conformal inverse optimization to IRL with a coordinate-invariant,
+      policy-value-based score, characterizes when behavioral compatibility
+      implies true-reward coverage, and proves when robust planning over the
+      resulting set cannot certify improvement over a reference policy.
     links:
-      - { name: Paper, url: "https://openreview.net/pdf?id=wRImV3kfR1" }
+      - { name: Paper, url: "https://openreview.net/forum?id=GZXE6lszVW" }
+      - { name: Code, url: "https://github.com/Chi-Shan0707/cp-irl" }
+      - { name: Project, url: "https://chi-shan0707.github.io/cp-irl/" }
+  - title: Token-Level Verification under Controlled Evaluation
+    short: Token verification
+    authors: Yuhan Chi
+    venue: ICML 2026 Workshop on AI for Math (AI4Math)
+    venue_short: ICML 2026 Workshop (AI4Math)
+    year: 2026
+    note: Poster
+    summary: >-
+      Shows that evaluation-protocol choices alone shift the apparent
+      verification AUROC of LLM math traces by up to 0.18; under controlled
+      scoring, shallow token statistics are diagnostics rather than reliable
+      standalone verifiers.
+    links:
+      - { name: Paper, url: "https://openreview.net/forum?id=wRImV3kfR1" }
       - { name: Code, url: "https://github.com/Chi-Shan0707/token-verification-mirage" }
+
+experience:
+  - when: Sep 2025 – present
+    title: B.S. in Information & Computing Science and Artificial Intelligence (double degree)
+    org: Fudan University, School of Mathematical Sciences
+    detail: GPA 3.98 / 4.00 · Rank 3 / 228
+  - when: Jul – Aug 2026
+    title: Visiting Student
+    org: Mechanical Systems Control Lab, UC Berkeley
+    url: https://msc.berkeley.edu/
+    detail: Studied robot hardware interfaces and explored dexterous-hand grasping in simulation.
+
+projects:
   - title: code-not-text
     url: https://github.com/Chi-Shan0707/code-not-text
-    meta: Solo measurement study · 31,040 runs
+    meta: Solo measurement study · 31,040 reasoning runs
     summary: >-
-      Do cheap reasoning-trace features transfer across domains? Strong in math,
-      partial in science QA, weak for code correctness.
+      Can cheap reasoning-trace features predict correctness across math,
+      science, and code? Selecting among 64 candidates with them changes pass@1
+      by +10.0 pp in math, +8.0 pp in science, and −0.6 pp in code.
     links:
       - { name: Code, url: "https://github.com/Chi-Shan0707/code-not-text" }
+      - { name: Demo, url: "https://chi-shan0707.github.io/code-not-text/demo/" }
+      - { name: Technical note, post: code-not-text }
   - title: TinyLoRA-GRPO-Coder
     url: https://github.com/Chi-Shan0707/TinyLoRA-GRPO-Coder
     meta: Solo project · RL post-training
     summary: >-
-      Tiny-parameter adaptation with GRPO for competitive-programming code
-      generation on Qwen2.5-Coder-3B, rewarded by actually compiling and running.
+      Can a tiny shared parameterization learn code generation from executable
+      feedback? Trains 32 shared scalars of Qwen2.5-Coder-3B with GRPO,
+      rewarded by real compile-and-run outcomes.
     links:
       - { name: Code, url: "https://github.com/Chi-Shan0707/TinyLoRA-GRPO-Coder" }
 
-publications:
-  - title: Token Verification Mirage
-    authors: Yuhan Chi
-    venue: ICML 2026 Workshop on AI for Math (AI4Math)
-    year: 2026
-    links:
-      - { name: Paper, url: "https://openreview.net/pdf?id=wRImV3kfR1" }
-      - { name: Code, url: "https://github.com/Chi-Shan0707/token-verification-mirage" }
-
 talks:
   - title: "From Bandits to PPO: an RL prerequisite seminar"
-    venue: School of Mathematical Sciences, Fudan University
+    venue: Fudan University
     date: Apr 2026
+    url: /files/From%20Bandits%20to%20PPO.pdf
 
-experience:
-  - when: Sep 2025 – now
-    what: Undergraduate, Information & Computational Science + AI (dual degree), Fudan University
-  - when: Jul – Aug 2026
-    what: Visiting student, Mechanical Systems Control Lab, UC Berkeley
-    url: https://msc.berkeley.edu/
+service:
+  - Reviewer, ICML 2026 Workshop on AI for Math (AI4Math)
+  - Founder, Fudan Open Source Initiative
+
+honors:
+  - First Prize, National Olympiad in Informatics in Provinces (NOIP), Shanghai, 2023

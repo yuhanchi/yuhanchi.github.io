@@ -1,0 +1,49 @@
+/* Monograph — book-like: running head, centered small-caps titles, ornaments, drop cap */
+:root {
+  --bg: #f6f4ee;
+  --text: #2a2925;
+  --muted: #6d6a60;
+  --line: #ddd8cb;
+  --accent: #5b6b5e;
+  --code-bg: #ece9e0;
+  --selection: rgba(91, 107, 94, .18);
+  --font-body: "Spectral", "Iowan Old Style", Georgia, "Songti SC", "Noto Serif SC", serif;
+  --font-head: var(--font-body);
+  --font-sc: "Spectral SC", "Spectral", serif;
+  --fs: 1.1rem;
+  --lh: 1.72;
+  --page: 44rem;
+  --measure: 42rem;
+  --photo-w: 11rem;
+  --photo-radius: 0;
+}
+.masthead { font-family: var(--font-sc); font-size: .85rem; letter-spacing: .12em; text-transform: lowercase; padding-bottom: .5rem; border-bottom: 1px solid var(--line); }
+.brand { font-family: var(--font-sc); font-weight: 500; font-size: .9rem; letter-spacing: .12em; text-transform: lowercase; }
+.brand-sub { color: var(--muted); }
+.nav { font-size: .85rem; }
+.nav a[aria-current] { color: var(--text); }
+
+.profile { grid-template-columns: minmax(0, 1fr); justify-items: center; text-align: center; }
+.profile-photo { width: var(--photo-w); margin-bottom: .6rem; }
+.profile-photo::after { content: "Plate I. Vernal Fall, Yosemite"; display: block; font-size: .78rem; font-style: italic; color: var(--muted); margin-top: .35rem; }
+.profile-name { font-weight: 400; font-size: 2.3rem; }
+.profile-name .native { display: block; margin: .2rem 0 0; font-size: .45em; letter-spacing: .4em; }
+.profile-role { font-style: italic; }
+.profile-bio { text-align: justify; hyphens: auto; }
+.profile-bio > p:first-child::first-letter { float: left; font-size: 3.4em; line-height: .9; padding: .06em .08em 0 0; color: var(--accent); }
+.block::before { content: "⁂"; display: block; text-align: center; color: var(--accent); font-size: 1.1rem; margin-bottom: 1rem; }
+.block-title, .cv-body h2 { font-family: var(--font-sc); font-weight: 500; font-size: 1.1rem; letter-spacing: .12em; text-transform: lowercase; text-align: center; border: 0; padding: 0; margin-bottom: 1rem; }
+.pub { text-align: left; }
+.pub-title { font-weight: 500; font-style: italic; }
+.pub-venue em { font-style: normal; }
+.misc-kind, .post-cat, .post-nav-label { font-family: var(--font-sc); text-transform: lowercase; font-weight: 500; letter-spacing: .08em; font-size: .85rem; color: var(--accent); }
+.page-header, .post-header { text-align: center; }
+.page-title, .post-header .post-title { font-weight: 400; }
+.post-lede { font-style: italic; }
+.prose h2, .prose h3 { font-family: var(--font-sc); font-weight: 500; text-transform: lowercase; letter-spacing: .06em; text-align: center; }
+.prose h2 { font-size: 1.2em; }
+.prose h3 { font-size: 1.05em; }
+.post .prose { text-align: justify; hyphens: auto; }
+.post .prose > p:first-child::first-letter { float: left; font-size: 3.2em; line-height: .9; padding: .06em .08em 0 0; color: var(--accent); }
+.year-title { text-align: center; font-family: var(--font-sc); font-weight: 500; letter-spacing: .12em; border: 0; }
+.site-footer { justify-content: center; text-align: center; flex-direction: column; align-items: center; }

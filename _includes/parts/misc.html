@@ -1,0 +1,11 @@
+<ul class="misc-list">
+  {%- for t in profile.talks %}
+  <li><span class="misc-kind">Talk</span> <span class="misc-text">{% if t.url %}<a href="{{ t.url | relative_url }}"><em>{{ t.title }}</em></a>{% else %}<em>{{ t.title }}</em>{% endif %}, {{ t.venue }}, {{ t.date }}</span></li>
+  {%- endfor %}
+  {%- for x in profile.service %}
+  <li><span class="misc-kind">Service</span> <span class="misc-text">{{ x }}</span></li>
+  {%- endfor %}
+  {%- for x in profile.honors %}
+  <li><span class="misc-kind">Honor</span> <span class="misc-text">{{ x }}</span></li>
+  {%- endfor %}
+</ul>

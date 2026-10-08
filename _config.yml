@@ -8,7 +8,7 @@ lang: en
 
 # The style used for canonical post URLs (/posts/<slug>/).
 # Once a final design is chosen, set it here.
-default_style: paper
+default_style: scholar
 
 markdown: kramdown
 kramdown:
@@ -17,7 +17,7 @@ kramdown:
   syntax_highlighter: rouge
   math_engine: mathjax
 
-permalink: /posts/:slug/
+permalink: /writing/:slug/
 timezone: Asia/Shanghai
 
 defaults:

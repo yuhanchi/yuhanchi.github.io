@@ -1,4 +1,3 @@
-{%- assign hide_intro_name = true -%}
 <body class="s-sage k-{{ page.kind }}">
   <div class="layout">
     <aside class="sidebar">
@@ -6,11 +5,11 @@
         <span class="brand-name">{{ profile.name }}</span>
         <span class="brand-native" lang="zh">{{ profile.native_name }}</span>
       </a>
-      <p class="brand-tag">{{ profile.tagline }}</p>
+      <p class="brand-tag">{{ profile.affiliation }}</p>
       {% include nav.html %}
       <ul class="side-links">
         {%- for l in profile.links %}
-        <li><a href="{{ l.url }}">{{ l.name }}</a></li>
+        <li><a href="{{ l.url | relative_url }}">{{ l.name }}</a></li>
         {%- endfor %}
       </ul>
     </aside>

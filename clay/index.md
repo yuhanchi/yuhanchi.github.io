@@ -1,6 +1,6 @@
 ---
 layout: default
 style: clay
-kind: home
+kind: about
 permalink: /clay/
 ---

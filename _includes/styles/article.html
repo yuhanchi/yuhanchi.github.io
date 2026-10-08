@@ -1,0 +1,13 @@
+<body class="s-article k-{{ page.kind }}">
+  <div class="wrap">
+    <header class="masthead">
+      <a class="brand" href="{{ base }}/">{{ profile.name }}</a>
+      {% include nav.html %}
+    </header>
+    <main id="main">
+      {% include main.html %}
+    </main>
+    {% include footer.html %}
+  </div>
+  {% include switcher.html %}
+</body>

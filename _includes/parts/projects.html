@@ -4,7 +4,7 @@
     <h3 class="project-title"><a href="{{ pr.url }}">{{ pr.title }}</a></h3>
     <p class="project-meta">{{ pr.meta }}</p>
     <p class="project-summary">{{ pr.summary }}</p>
-    <p class="project-links">{% for l in pr.links %}<a href="{{ l.url }}">{{ l.name }}</a>{% unless forloop.last %}<span class="sep" aria-hidden="true"> · </span>{% endunless %}{% endfor %}</p>
+    <p class="project-links">{% for l in pr.links %}<a href="{% if l.post %}{{ base }}/writing/{{ l.post }}/{% else %}{{ l.url }}{% endif %}">{{ l.name }}</a>{% endfor %}</p>
   </li>
   {%- endfor %}
 </ul>

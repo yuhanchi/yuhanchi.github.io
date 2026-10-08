@@ -3,11 +3,17 @@
     <p class="post-kicker"><a href="{{ base }}/writing/">←&nbsp;Writing</a></p>
     <h1 class="post-title">{{ post.title }}</h1>
     {%- if post.description %}<p class="post-lede">{{ post.description }}</p>{% endif %}
-    <p class="post-meta">
+    <p class="post-meta">{% if post.category %}<span class="post-cat">{{ post.category | capitalize }}</span><span class="sep" aria-hidden="true"> · </span>{% endif %}
       <time datetime="{{ post.date | date_to_xmlschema }}">{{ post.date | date: "%B %-d, %Y" }}</time>
       <span class="sep" aria-hidden="true">·</span> {{ minutes }} min read
       {% if post.tags.size > 0 %}<span class="sep" aria-hidden="true">·</span> {% for t in post.tags %}<span class="tag">{{ t }}</span>{% unless forloop.last %}, {% endunless %}{% endfor %}{% endif %}
     </p>
+    <dl class="post-byline">
+      <div><dt>Author</dt><dd>{{ profile.name }}</dd></div>
+      <div><dt>Affiliation</dt><dd>{{ profile.affiliation_short }}</dd></div>
+      <div><dt>Published</dt><dd>{{ post.date | date: "%B %-d, %Y" }}</dd></div>
+      <div><dt>Reading time</dt><dd>{{ minutes }} min</dd></div>
+    </dl>
   </header>
   <div class="prose">
     {{ body }}

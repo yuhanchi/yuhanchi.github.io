@@ -1,0 +1,51 @@
+/* Distill — research-journal look: sans headings, serif text, byline grid */
+:root {
+  --bg: #ffffff;
+  --text: #1f2328;
+  --muted: #5f6872;
+  --line: #e4e8ec;
+  --accent: #3b6e8f;
+  --code-bg: #f4f6f8;
+  --selection: rgba(59, 110, 143, .15);
+  --font-ui: "Libre Franklin", ui-sans-serif, -apple-system, "Segoe UI", "PingFang SC", "Noto Sans SC", sans-serif;
+  --font-head: var(--font-ui);
+  --font-body: "Source Serif 4", "Source Serif Pro", Georgia, "Songti SC", "Noto Serif SC", serif;
+  --fs: 1.1rem;
+  --lh: 1.68;
+  --page: 60rem;
+  --measure: 44rem;
+  --photo-w: 12rem;
+}
+.topbar { border-bottom: 1px solid var(--line); background: #fafbfc; font-family: var(--font-ui); }
+.topbar-in { max-width: var(--page); margin: 0 auto; padding: .7rem var(--pad-x); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: .4rem 1.5rem; }
+.topbar .brand { font-family: var(--font-ui); font-size: .98rem; font-weight: 700; }
+.topbar .nav { font-size: .88rem; }
+.topbar .nav a[aria-current] { color: var(--text); font-weight: 600; }
+.wrap { padding-top: 2rem; }
+.profile-name { font-weight: 700; letter-spacing: -.02em; font-size: 2.3rem; }
+.profile-role { font-family: var(--font-ui); font-size: .92rem; }
+.profile-links { font-family: var(--font-ui); font-size: .9rem; }
+.block { display: grid; grid-template-columns: 11rem minmax(0, 1fr); gap: 0 2rem; border-top: 1px solid var(--line); padding-top: 1rem; }
+.block-title { font-size: .95rem; font-weight: 600; border: 0; padding: 0; color: var(--text); }
+.pub-title { font-family: var(--font-ui); font-weight: 600; font-size: .98rem; }
+.pub-venue, .pub-authors, .exp-when, .project-meta, .post-date { font-family: var(--font-ui); font-size: .85rem; }
+.pub-links a::before, .pub-links a::after, .project-links a::before, .project-links a::after { content: none; }
+.pub-links a, .project-links a { font-family: var(--font-ui); font-size: .8rem; font-weight: 500; }
+.exp-title, .project-title { font-family: var(--font-ui); font-size: .98rem; }
+.page-title, .post-header .post-title { font-weight: 700; letter-spacing: -.025em; }
+.post { max-width: var(--page); }
+.post-header { max-width: var(--measure); }
+.post-header .post-title { font-size: 2.6rem; line-height: 1.12; }
+.post-lede { font-family: var(--font-body); font-size: 1.2rem; }
+.post-meta { display: none; }
+.post-byline { display: grid; grid-template-columns: repeat(4, auto); justify-content: start; gap: .2rem 2.5rem; margin: 1.2rem 0 0; padding: .9rem 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); font-family: var(--font-ui); font-size: .85rem; }
+.post-byline dt { color: var(--muted); font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; }
+.post-byline dd { margin: 0; }
+.post .prose, .post-footer { max-width: var(--measure); }
+.prose h2 { font-size: 1.45em; letter-spacing: -.015em; }
+.prose h3 { font-size: 1.15em; }
+.cv-body h2 { font-size: 1.05rem; }
+@media (max-width: 680px) {
+  .block { grid-template-columns: minmax(0, 1fr); }
+  .post-byline { grid-template-columns: repeat(2, auto); }
+}

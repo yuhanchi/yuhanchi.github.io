@@ -1,6 +1,6 @@
 ---
 layout: default
 style: paper
-kind: home
+kind: about
 permalink: /paper/
 ---

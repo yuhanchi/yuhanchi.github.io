@@ -1,0 +1,55 @@
+/* Classic — the familiar researcher page: bio beside a photo, Lato, calm blue links */
+:root {
+  --bg: #ffffff;
+  --text: #222222;
+  --muted: #666b70;
+  --line: #e6e8eb;
+  --accent: #2a5d8f;
+  --code-bg: #f4f6f8;
+  --selection: rgba(42, 93, 143, .15);
+  --font-body: "Lato", "Helvetica Neue", Helvetica, Arial, "PingFang SC", "Noto Sans SC", sans-serif;
+  --font-head: var(--font-body);
+  --fs: 1.03rem;
+  --lh: 1.62;
+  --page: 52rem;
+  --measure: 44rem;
+  --photo-w: 12.5rem;
+  --photo-radius: 3px;
+}
+.masthead { justify-content: flex-end; margin-bottom: 1.25rem; }
+.brand { margin-right: auto; font-weight: 700; }
+.k-about .brand { visibility: hidden; }
+.nav a { color: var(--accent); }
+.nav a[aria-current] { color: var(--text); font-weight: 700; }
+
+.profile { grid-template-columns: minmax(0, 1fr) var(--photo-w); gap: 0 2.5rem; align-items: center; }
+.profile-photo { grid-column: 2; grid-row: 1; }
+.profile-main { grid-column: 1; grid-row: 1; }
+.profile-name { text-align: center; font-weight: 400; font-size: 2.2rem; margin-bottom: .9rem; }
+.profile-role { display: none; }
+.profile-links { text-align: center; order: 9; margin: .6rem 0 0; }
+.profile-main { display: flex; flex-direction: column; }
+.profile-bio { order: 2; }
+.profile-bio p { margin-bottom: .75em; }
+.profile-bio a, .block a, .profile-links a, .misc-text a { color: var(--accent); }
+.profile-links .sep { margin: 0 .2rem; }
+
+.block-title, .cv-body h2 { font-size: 1.35rem; font-weight: 400; border: 0; padding: 0; margin-bottom: .6rem; }
+.block { padding-top: .2rem; }
+.pub { padding: .8rem 1rem; margin: 0 -1rem .3rem; border-radius: 4px; }
+.pub:nth-child(odd) { background: #f7f9fb; }
+.pub-title { font-weight: 700; color: var(--accent); }
+.pub-authors .me { font-weight: 700; }
+.pub-venue em { font-style: italic; }
+.pub-links a::before, .pub-links a::after, .project-links a::before, .project-links a::after { content: none; }
+.pub-links a + a::before, .project-links a + a::before { content: "/ "; color: var(--muted); margin-right: .35em; }
+.pub-links a, .project-links a { margin-right: .35em; }
+.project-title a { color: var(--accent); }
+.post-header .post-title, .page-title { font-weight: 400; }
+.prose h2, .prose h3 { font-weight: 700; }
+.site-footer { justify-content: center; text-align: center; }
+@media (max-width: 680px) {
+  .profile { grid-template-columns: minmax(0, 1fr); }
+  .profile-photo { grid-column: 1; grid-row: 1; margin: 0 auto 1rem; }
+  .profile-main { grid-row: 2; }
+}

@@ -10,7 +10,7 @@ with sync_playwright() as p:
     pg = b.new_page(viewport={"width": w, "height": 900}, device_scale_factor=1)
     for path in paths:
         pg.goto("http://localhost:4567" + path, wait_until="networkidle", timeout=45000)
-        pg.wait_for_timeout(600); pg.evaluate("document.fonts.ready.then(() => 1)"); pg.wait_for_timeout(300)
+        pg.wait_for_timeout(600); pg.evaluate("document.fonts.ready.then(() => 1)"); pg.evaluate("(window.MathJax && MathJax.startup && MathJax.startup.promise) ? MathJax.startup.promise.then(() => 1) : 1"); pg.wait_for_timeout(300)
         name = (path.strip("/").replace("/", "_") or "root") + f"_{w}.png"
         pg.screenshot(path=os.path.join(out, name), full_page=full)
         print(name)

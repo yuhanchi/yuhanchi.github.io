@@ -1,0 +1,12 @@
+<ul class="exp-list">
+  {%- for e in profile.experience %}
+  <li class="exp">
+    <span class="exp-when">{{ e.when }}</span>
+    <div class="exp-what">
+      <span class="exp-title">{{ e.title }}</span>
+      <span class="exp-org">{% if e.url %}<a href="{{ e.url }}">{{ e.org }}</a>{% else %}{{ e.org }}{% endif %}</span>
+      {%- if e.detail %}<span class="exp-detail">{{ e.detail }}</span>{% endif %}
+    </div>
+  </li>
+  {%- endfor %}
+</ul>

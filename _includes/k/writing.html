@@ -1,7 +1,7 @@
 <section class="writing">
   <header class="page-header">
     <h1 class="page-title">Writing</h1>
-    <p class="page-lede">Notes on mathematics, learning, and decision-making. {{ site.posts.size }} posts.</p>
+    <p class="page-lede">Technical notes and musings on mathematics, learning, and decision-making.</p>
   </header>
   {%- assign by_year = site.posts | group_by_exp: "p", "p.date | date: '%Y'" %}
   {%- for y in by_year %}
@@ -12,7 +12,7 @@
       <li class="post-item">
         <a class="post-link" href="{{ base }}/writing/{{ p.slug }}/">{{ p.title }}</a>
         <time class="post-date" datetime="{{ p.date | date_to_xmlschema }}">{{ p.date | date: "%b %-d" }}</time>
-        {%- if p.description %}<p class="post-excerpt">{{ p.description }}</p>{% endif %}
+        {%- if p.description %}<p class="post-excerpt">{% if p.category %}<span class="post-cat">{{ p.category | capitalize }}</span> {% endif %}{{ p.description }}</p>{% endif %}
       </li>
       {%- endfor %}
     </ul>

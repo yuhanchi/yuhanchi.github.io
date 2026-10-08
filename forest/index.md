@@ -1,6 +1,6 @@
 ---
 layout: default
 style: forest
-kind: home
+kind: about
 permalink: /forest/
 ---

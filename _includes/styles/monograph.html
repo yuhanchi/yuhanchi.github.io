@@ -1,0 +1,13 @@
+<body class="s-monograph k-{{ page.kind }}">
+  <div class="wrap">
+    <header class="masthead">
+      <a class="brand" href="{{ base }}/">{{ profile.name }}<span class="brand-sub"> · {{ ptitle }}</span></a>
+      {% include nav.html %}
+    </header>
+    <main id="main">
+      {% include main.html %}
+    </main>
+    {% include footer.html %}
+  </div>
+  {% include switcher.html %}
+</body>

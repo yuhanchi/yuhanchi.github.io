@@ -1,6 +1,6 @@
 ---
 layout: default
 style: stone
-kind: home
+kind: about
 permalink: /stone/
 ---

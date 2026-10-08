@@ -1,6 +1,6 @@
 ---
 layout: default
 style: linen
-kind: home
+kind: about
 permalink: /linen/
 ---

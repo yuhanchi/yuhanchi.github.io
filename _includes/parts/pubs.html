@@ -1,16 +1,13 @@
-<ul class="pub-list">
+<ol class="pub-list">
   {%- for pb in profile.publications %}
   <li class="pub">
     <span class="pub-title">{{ pb.title }}</span>
-    <span class="pub-authors">{{ pb.authors }}</span>
-    <span class="pub-venue">{{ pb.venue }}, {{ pb.year }}</span>
-    <span class="pub-links">{% for l in pb.links %}<a href="{{ l.url }}">{{ l.name }}</a>{% unless forloop.last %}<span class="sep" aria-hidden="true"> · </span>{% endunless %}{% endfor %}</span>
+    <span class="pub-authors">{% assign names = pb.authors | split: ", " %}{% for n in names %}{% if n == profile.name %}<strong class="me">{{ n }}</strong>{% else %}{{ n }}{% endif %}{% unless forloop.last %}, {% endunless %}{% endfor %}</span>
+    <span class="pub-venue"><em>{{ pb.venue }}</em>, {{ pb.year }}{% if pb.note %} <span class="pub-note">{{ pb.note }}</span>{% endif %}</span>
+    {%- if pb.summary and show_pub_summary != false %}
+    <span class="pub-summary">{{ pb.summary }}</span>
+    {%- endif %}
+    <span class="pub-links">{% for l in pb.links %}<a href="{{ l.url }}">{{ l.name }}</a>{% endfor %}</span>
   </li>
   {%- endfor %}
-  {%- for t in profile.talks %}
-  <li class="pub talk">
-    <span class="pub-title">{{ t.title }}</span>
-    <span class="pub-venue">Talk · {{ t.venue }}, {{ t.date }}</span>
-  </li>
-  {%- endfor %}
-</ul>
+</ol>

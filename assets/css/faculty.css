@@ -1,0 +1,54 @@
+/* Faculty — a university profile page: teal header band, contact card beside the bio */
+:root {
+  --bg: #f6f7f7;
+  --surface: #ffffff;
+  --text: #20333f;
+  --muted: #5d6c75;
+  --line: #dde3e6;
+  --accent: #23566b;
+  --band: #23485a;
+  --code-bg: #eef2f3;
+  --selection: rgba(35, 86, 107, .16);
+  --font-body: "Noto Sans", ui-sans-serif, -apple-system, "Segoe UI", "PingFang SC", "Noto Sans SC", sans-serif;
+  --font-head: "Noto Serif", Georgia, "Noto Serif SC", "Songti SC", serif;
+  --fs: 1rem;
+  --lh: 1.65;
+  --page: 62rem;
+  --measure: 44rem;
+  --photo-w: 15rem;
+  --photo-radius: 0;
+}
+.band { background: var(--band); color: #eef4f6; border-bottom: 4px solid #c9a75a; }
+.band-in { max-width: var(--page); margin: 0 auto; padding: 1rem var(--pad-x); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: .5rem 1.5rem; }
+.band .brand { display: flex; flex-direction: column; font-family: var(--font-head); color: #fff; }
+.brand-name { font-size: 1.3rem; font-weight: 600; }
+.brand-aff { font-family: var(--font-body); font-size: .78rem; font-weight: 400; letter-spacing: .04em; opacity: .8; }
+.band .nav a { color: rgba(238, 244, 246, .82); font-size: .92rem; padding: .3rem .1rem; border-bottom: 2px solid transparent; }
+.band .nav a:hover { color: #fff; }
+.band .nav a[aria-current] { color: #fff; border-bottom-color: #c9a75a; }
+.wrap { padding-top: 1.75rem; }
+
+.profile { grid-template-columns: var(--photo-w) minmax(0, 1fr); gap: 0 2rem; background: var(--surface); border: 1px solid var(--line); padding: 1.5rem; }
+.profile-photo { grid-row: 1 / span 2; }
+.profile-name { font-size: 1.95rem; }
+.profile-role { color: var(--text); }
+.profile-links { display: flex; flex-wrap: wrap; gap: .4rem; }
+.profile-links .sep { display: none; }
+.profile-links a { font-size: .85rem; padding: .25rem .7rem; border: 1px solid var(--line); background: var(--bg); color: var(--accent); }
+.profile-links a:hover { border-color: var(--accent); text-decoration: none; }
+.block { background: var(--surface); border: 1px solid var(--line); padding: 1.25rem 1.5rem; margin-bottom: 1.25rem; }
+.block-title, .cv-body h2 { font-size: 1.15rem; color: var(--accent); border-bottom: 2px solid var(--line); }
+.pub-title { font-family: var(--font-head); }
+.pub-links a::before, .pub-links a::after, .project-links a::before, .project-links a::after { content: none; }
+.pub-links a, .project-links a { font-size: .82rem; padding: .05rem .5rem; border: 1px solid var(--line); margin-right: .35rem; }
+.pub-links a:hover, .project-links a:hover { border-color: var(--accent); text-decoration: none; }
+.misc-kind { color: var(--accent); }
+.writing, .cv, .post { background: var(--surface); border: 1px solid var(--line); padding: 1.75rem 2rem; max-width: calc(var(--measure) + 4rem); }
+.page-title, .post-header .post-title { color: var(--text); }
+.post-cat { color: var(--accent); }
+.prose h2, .prose h3 { color: var(--accent); }
+@media (max-width: 680px) {
+  .profile { grid-template-columns: minmax(0, 1fr); padding: 1.1rem; }
+  .profile-photo { grid-row: auto; }
+  .block, .writing, .cv, .post { padding: 1rem 1.1rem; }
+}

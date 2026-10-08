@@ -1,0 +1,54 @@
+/* Claret — burgundy on warm white; profile column with contact details, Crimson Pro */
+:root {
+  --bg: #fbf9f6;
+  --surface: #ffffff;
+  --text: #2b2326;
+  --muted: #6e6266;
+  --line: #e9e1dc;
+  --accent: #7b2d3b;
+  --code-bg: #f4eeea;
+  --selection: rgba(123, 45, 59, .14);
+  --font-body: "Crimson Pro", "Iowan Old Style", Georgia, "Songti SC", "Noto Serif SC", serif;
+  --font-head: var(--font-body);
+  --fs: 1.2rem;
+  --lh: 1.6;
+  --page: 64rem;
+  --measure: 42rem;
+  --photo-w: 100%;
+}
+.masthead { border-bottom: 1px solid var(--line); padding-bottom: .8rem; }
+.brand { font-size: 1.35rem; font-weight: 600; color: var(--accent); }
+.nav { font-size: 1.05rem; }
+.nav a[aria-current] { color: var(--accent); font-weight: 600; }
+
+/* about: left column = photo + name + contact, right column = everything else */
+.about { display: grid; grid-template-columns: 15rem minmax(0, 1fr); grid-template-rows: repeat(5, auto) 1fr; column-gap: 3rem; }
+.profile, .profile-main { display: contents; }
+.profile-photo { grid-column: 1; grid-row: 1; margin-bottom: 1rem; }
+.profile-name { grid-column: 1; grid-row: 2; font-size: 1.7rem; }
+.profile-name .native { display: block; margin: .15rem 0 0; color: var(--accent); }
+.profile-role { grid-column: 1; grid-row: 3; font-size: 1rem; }
+.profile-links { grid-column: 1; grid-row: 4; display: flex; flex-direction: column; gap: .15rem; padding-top: .7rem; border-top: 1px solid var(--line); font-size: 1rem; }
+.profile-links .sep { display: none; }
+.profile-links a::before { content: "→ "; color: var(--muted); }
+.profile-bio { grid-column: 2; grid-row: 1 / 7; align-self: start; }
+.about > .block { grid-column: 2; }
+.about > .block:first-of-type { margin-top: 0; }
+.profile-bio { margin-bottom: var(--gap); }
+.block-title, .cv-body h2 { font-size: 1.45rem; color: var(--accent); border-bottom-color: var(--line); }
+.pub-title { font-size: 1.05em; }
+.pub-venue em { font-style: italic; }
+.exp-when { font-style: italic; }
+.misc-kind { color: var(--accent); }
+.post-cat { color: var(--accent); }
+.page-title, .post-header .post-title { color: var(--text); }
+.post-header .post-title { font-size: 2.5rem; }
+.prose h2 { color: var(--accent); font-weight: 600; }
+.prose blockquote { border-left-color: var(--accent); }
+@media (max-width: 760px) {
+  .about { display: block; }
+  .profile { display: grid; }
+  .profile-main { display: block; }
+  .profile-photo { width: 11rem; }
+  .profile-links { flex-direction: row; flex-wrap: wrap; gap: .2rem 1rem; }
+}

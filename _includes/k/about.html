@@ -1,13 +1,51 @@
 <article class="about">
-  <header class="about-header">
-    <h1 class="page-title">About</h1>
-  </header>
-  <figure class="about-photo">
-    <img src="{{ profile.photo | relative_url }}" alt="{{ profile.photo_alt }}" width="900" height="1200" decoding="async">
-    <figcaption>Vernal Fall, Yosemite</figcaption>
-  </figure>
-  <div class="about-body prose">
-    {%- capture about_md %}{% include about.md %}{% endcapture %}
-    {{ about_md | markdownify }}
-  </div>
+  <section class="profile">
+    <figure class="profile-photo">
+      <img src="{{ profile.photo | relative_url }}" alt="{{ profile.photo_alt }}" width="900" height="1200" decoding="async">
+    </figure>
+    <div class="profile-main">
+      <h1 class="profile-name">{{ profile.name }} <span class="native" lang="zh">{{ profile.native_name }}</span></h1>
+      <p class="profile-role">{{ profile.role }}<br><a href="{{ profile.affiliation_url }}">{{ profile.affiliation }}</a></p>
+      <p class="profile-links">
+        {%- for l in profile.links %}<a href="{{ l.url | relative_url }}">{{ l.name }}</a>{% unless forloop.last %}<span class="sep" aria-hidden="true"> · </span>{% endunless %}{% endfor -%}
+      </p>
+      <div class="profile-bio prose">
+        {%- capture about_md %}{% include about.md %}{% endcapture %}
+        {{ about_md | markdownify }}
+      </div>
+    </div>
+  </section>
+
+  <section class="block" id="interests">
+    <h2 class="block-title">Research Interests</h2>
+    <div class="block-body"><p class="block-text">{{ profile.interests }}</p></div>
+  </section>
+
+  <section class="block" id="publications">
+    <h2 class="block-title">Publications</h2>
+    <div class="block-body">{% include parts/pubs.html %}</div>
+  </section>
+
+  <section class="block" id="experience">
+    <h2 class="block-title">Education &amp; Experience</h2>
+    <div class="block-body">{% include parts/experience.html %}</div>
+  </section>
+
+  <section class="block" id="projects">
+    <h2 class="block-title">Selected Projects</h2>
+    <div class="block-body">{% include parts/projects.html %}</div>
+  </section>
+
+  <section class="block" id="talks">
+    <h2 class="block-title">Talks, Service &amp; Honors</h2>
+    <div class="block-body">{% include parts/misc.html %}</div>
+  </section>
+
+  <section class="block" id="recent">
+    <h2 class="block-title">Recent Writing</h2>
+    <div class="block-body">
+      {% include parts/post-list.html limit=4 %}
+      <p class="more"><a href="{{ base }}/writing/">All {{ site.posts.size }} posts&nbsp;→</a></p>
+    </div>
+  </section>
 </article>

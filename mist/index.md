@@ -1,6 +1,6 @@
 ---
 layout: default
 style: mist
-kind: home
+kind: about
 permalink: /mist/
 ---

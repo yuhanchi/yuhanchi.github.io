@@ -1,6 +1,6 @@
 ---
 layout: default
 style: dusk
-kind: home
+kind: about
 permalink: /dusk/
 ---

@@ -1,0 +1,15 @@
+<body class="s-faculty k-{{ page.kind }}">
+  <header class="band">
+    <div class="band-in">
+      <a class="brand" href="{{ base }}/"><span class="brand-name">{{ profile.name }}</span><span class="brand-aff">{{ profile.affiliation }}</span></a>
+      {% include nav.html %}
+    </div>
+  </header>
+  <div class="wrap">
+    <main id="main">
+      {% include main.html %}
+    </main>
+    {% include footer.html %}
+  </div>
+  {% include switcher.html %}
+</body>

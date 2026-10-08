@@ -1,14 +1,17 @@
 {%- comment -%}
   Shared variables for every styled page:
-    s      style id        st    style record from _data/styles.yml
-    base   URL prefix of the style ("/paper")
-    post   the post being shown (kind == post)
-    body   rendered post HTML
+    s      design id          st    design record from _data/styles.yml
+    base   URL prefix: "/<id>" for design previews, "" for the root site
+    post   the post being shown (kind == post), body = its rendered HTML
 {%- endcomment -%}
 {%- assign profile = site.data.profile -%}
 {%- assign s = page.style | default: site.default_style -%}
 {%- assign st = site.data.styles | where: "id", s | first -%}
-{%- assign base = site.baseurl | append: "/" | append: s -%}
+{%- if page.style -%}
+  {%- assign base = site.baseurl | append: "/" | append: s -%}
+{%- else -%}
+  {%- assign base = site.baseurl -%}
+{%- endif -%}
 {%- assign post = nil -%}
 {%- if page.kind == "post" -%}
   {%- if page.post_slug -%}
@@ -25,13 +28,15 @@
   {%- assign ptitle = "About" -%}
 {%- elsif page.kind == "writing" -%}
   {%- assign ptitle = "Writing" -%}
+{%- elsif page.kind == "cv" -%}
+  {%- assign ptitle = "CV" -%}
 {%- else -%}
   {%- assign ptitle = page.title -%}
 {%- endif -%}
 {%- capture subpath -%}
   {%- case page.kind -%}
-    {%- when "about" -%}about/
     {%- when "writing" -%}writing/
+    {%- when "cv" -%}cv/
     {%- when "post" -%}writing/{{ post.slug }}/
   {%- endcase -%}
 {%- endcapture -%}

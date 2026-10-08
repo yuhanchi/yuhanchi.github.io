@@ -1,0 +1,41 @@
+/* Ivy — deep ivy green, Libre Baskerville text, Cormorant small-caps headings */
+:root {
+  --bg: #f7f6f0;
+  --surface: #fdfdf9;
+  --text: #22291f;
+  --muted: #5e665a;
+  --line: #dfe2d3;
+  --accent: #2e5339;
+  --code-bg: #eeefe5;
+  --selection: rgba(46, 83, 57, .15);
+  --font-body: "Libre Baskerville", Baskerville, Georgia, "Songti SC", "Noto Serif SC", serif;
+  --font-head: "Cormorant SC", "Cormorant Garamond", Garamond, serif;
+  --fs: .98rem;
+  --lh: 1.8;
+  --page: 56rem;
+  --measure: 42rem;
+  --photo-w: 12.5rem;
+  --photo-radius: 0;
+}
+body { border-top: 5px solid var(--accent); }
+.masthead { align-items: center; }
+.brand { font-size: 1.6rem; font-weight: 600; letter-spacing: .03em; color: var(--accent); }
+.nav { font-size: .88rem; }
+.nav a[aria-current] { color: var(--accent); border-bottom: 1px solid var(--accent); }
+.profile-photo img { outline: 1px solid var(--accent); outline-offset: 5px; }
+.profile-photo { padding: 6px; }
+.profile-name { font-family: var(--font-body); font-weight: 400; font-size: 1.85rem; }
+.profile-role { font-style: italic; font-size: .95rem; }
+.block-title, .cv-body h2 { font-weight: 600; font-size: 1.55rem; letter-spacing: .03em; color: var(--accent); border-bottom: 0; padding-bottom: 0; margin-bottom: .6rem; }
+.block-title::after, .cv-body h2::after { content: ""; display: block; width: 2.5rem; height: 2px; background: var(--accent); margin-top: .15rem; }
+.pub { border-left: 3px solid var(--line); padding-left: 1rem; }
+.pub:hover { border-left-color: var(--accent); }
+.pub-title { font-weight: 700; font-size: .97em; }
+.pub-venue em { font-style: italic; }
+.project-title { font-family: var(--font-body); font-size: .98rem; }
+.misc-kind, .post-cat, .post-nav-label { font-family: var(--font-head); text-transform: lowercase; letter-spacing: .03em; font-size: 1.05rem; font-weight: 600; color: var(--accent); padding-top: 0; }
+.page-title, .post-header .post-title { font-weight: 600; color: var(--accent); letter-spacing: .02em; }
+.post-header .post-title { font-family: var(--font-body); font-weight: 400; color: var(--text); font-size: 2rem; }
+.prose h2, .prose h3 { font-family: var(--font-head); color: var(--accent); font-weight: 600; }
+.prose h2 { font-size: 1.6em; }
+.year-title { font-weight: 600; font-size: 1.3rem; color: var(--accent); }

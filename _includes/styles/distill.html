@@ -1,0 +1,15 @@
+<body class="s-distill k-{{ page.kind }}">
+  <header class="topbar">
+    <div class="topbar-in">
+      <a class="brand" href="{{ base }}/">{{ profile.name }}</a>
+      {% include nav.html %}
+    </div>
+  </header>
+  <div class="wrap">
+    <main id="main">
+      {% include main.html %}
+    </main>
+    {% include footer.html %}
+  </div>
+  {% include switcher.html %}
+</body>

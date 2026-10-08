@@ -1,6 +1,6 @@
 ---
 layout: default
 style: washi
-kind: home
+kind: about
 permalink: /washi/
 ---

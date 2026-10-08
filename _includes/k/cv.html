@@ -1,0 +1,10 @@
+<article class="cv">
+  <header class="page-header">
+    <h1 class="page-title">Curriculum Vitae</h1>
+    <p class="page-lede">{{ profile.name }} · {{ profile.affiliation }} · <a class="cv-download" href="{{ profile.cv_pdf | relative_url }}">Download PDF&nbsp;↓</a></p>
+  </header>
+  <div class="cv-body prose">
+    {%- capture cv_md %}{% include cv.md %}{% endcapture %}
+    {{ cv_md | markdownify }}
+  </div>
+</article>

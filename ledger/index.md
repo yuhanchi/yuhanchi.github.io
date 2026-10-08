@@ -1,6 +1,6 @@
 ---
 layout: default
 style: ledger
-kind: home
+kind: about
 permalink: /ledger/
 ---

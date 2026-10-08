@@ -1,6 +1,6 @@
 ---
 layout: default
 style: sage
-kind: home
+kind: about
 permalink: /sage/
 ---

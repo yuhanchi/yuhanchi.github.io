@@ -1,0 +1,37 @@
+/* Scholar — classic academic homepage: ivory, navy ink, EB Garamond, small caps */
+:root {
+  --bg: #faf8f2;
+  --text: #1f2a3a;
+  --muted: #5d6675;
+  --line: #e2dccd;
+  --accent: #2c4a6e;
+  --code-bg: #f0ece2;
+  --selection: rgba(44, 74, 110, .16);
+  --font-body: "EB Garamond", Garamond, "Iowan Old Style", Georgia, "Songti SC", "Noto Serif SC", serif;
+  --font-head: var(--font-body);
+  --font-sc: "EB Garamond SC", "EB Garamond", Garamond, serif;
+  --fs: 1.2rem;
+  --lh: 1.6;
+  --page: 54rem;
+  --measure: 42rem;
+  --photo-w: 12.5rem;
+}
+.masthead { padding-bottom: .7rem; border-bottom: 1px solid var(--accent); }
+.brand { font-family: var(--font-sc); font-weight: 500; font-size: 1.3rem; letter-spacing: .04em; color: var(--accent); }
+.nav { font-size: 1.05rem; }
+.nav a[aria-current] { color: var(--text); border-bottom: 1px solid var(--accent); }
+.profile-name { font-weight: 500; font-size: 2.35rem; letter-spacing: -.005em; }
+.profile-name .native { color: var(--accent); }
+.profile-role { font-style: italic; font-size: 1.08rem; }
+.profile-photo img { box-shadow: 0 0 0 1px var(--line), 6px 6px 0 -1px var(--line); }
+.block-title, .cv-body h2 { font-family: var(--font-sc); font-weight: 500; font-size: 1.32rem; letter-spacing: .03em; color: var(--accent); border-bottom-color: var(--line); }
+.pub-title { font-weight: 600; font-size: 1.04em; }
+.pub-venue { font-style: italic; }
+.pub-venue em { font-style: italic; }
+.misc-kind, .post-cat, .post-nav-label { font-family: var(--font-sc); font-size: .9rem; font-weight: 500; letter-spacing: .04em; text-transform: lowercase; }
+.page-title, .post-header .post-title { font-weight: 500; letter-spacing: -.005em; }
+.post-header .post-title { font-size: 2.4rem; }
+.post-lede { font-style: italic; }
+.prose h2 { font-weight: 600; }
+.prose blockquote { border-left-color: var(--accent); }
+.year-title { font-family: var(--font-sc); font-weight: 500; color: var(--accent); }
