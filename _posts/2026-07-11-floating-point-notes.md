@@ -6,31 +6,6 @@ category: "tech"
 tags: ["mathematics", "computer"]
 math: true
 ---
-<style>
-/* Extra breathing room between prose and examples */
-.fp-example {
-  background: #f8f9fa;
-  border-left: 4px solid #4a90d9;
-  padding: 1.5em 1.7em !important;
-  margin: 2.5em 0 2.8em 0 !important;
-  border-radius: 6px;
-  line-height: 1.95 !important;
-}
-.fp-example p,
-.fp-example ul,
-.fp-example ol {
-  margin-bottom: 1.1em !important;
-}
-.fp-example pre {
-  background: #fff !important;
-  margin-top: 1.2em !important;
-  margin-bottom: 1.2em !important;
-}
-.fp-spacer {
-  height: 1.2em;
-}
-</style>
-
 Let's build the concept of floating-point numbers in computers from first principles.
 
 
