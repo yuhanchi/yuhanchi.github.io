@@ -1,4 +1,5 @@
 ---
+published: false
 title: "From an ONNX policy to a running robot"
 date: "2026-07-30"
 description: "A practical guide to running an ONNX policy on a robot with safe real-time control loops."

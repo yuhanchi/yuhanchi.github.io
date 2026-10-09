@@ -7,6 +7,11 @@ tags: ["AI", "code", "mathematics"]
 ---
 This note summarizes my project [code-not-text](https://github.com/Chi-Shan0707/code-not-text). The interactive version is here: [demo](https://chi-shan0707.github.io/code-not-text/demo/). The full technical report is here: [PDF report](https://github.com/Chi-Shan0707/code-not-text/blob/main/project_report/project_report.pdf).
 
+<figure>
+  <a href="{{ '/assets/img/posts/cot-math-vs-coding.png' | relative_url }}" title="Open full size"><img src="{{ '/assets/img/posts/cot-math-vs-coding.png' | relative_url }}" alt="Two reasoning traces side by side. Left, a correct math solution (AIME24 #1) that proceeds step by step and verifies its answer. Right, an incorrect coding trace (LiveCodeBench-v5 #131) full of hedges such as 'but note', 'however' and 'but wait'." width="2040" height="1184" loading="lazy"></a>
+  <figcaption>Same model, same feature family, two very different traces. Left: a correct AIME24 solution whose reasoning converges step by step. Right: an incorrect LiveCodeBench-v5 trace that reads fluently but keeps hedging while the logic goes wrong. The AUROC in each title is the domain-level AUROC@100% (math 0.982, coding 0.407). From the <a href="https://chi-shan0707.github.io/code-not-text/demo/">interactive demo</a>; click the image for full size.</figcaption>
+</figure>
+
 ## Question
 
 Can cheap summaries of a chain-of-thought trace predict whether a solution is correct?
