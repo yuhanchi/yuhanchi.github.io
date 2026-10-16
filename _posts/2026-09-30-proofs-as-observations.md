@@ -40,3 +40,20 @@ Verification settles truth, but understanding still lives in the mind rather tha
 
 - **What about failures?** Failures are ambiguous. Failing to find a proof or counterexample may reflect the model's limitations or the nature of the conjecture itself. We need to distinguish the two.
 - **Will lock-in take place and we stop delving into foundations?** I believe mathematicians can notice repeated friction in AI's output. That is where we should revisit our foundations.
+
+<details>
+<summary>Cite this post</summary>
+<p>If you find this post useful in your work, you can cite it as:</p>
+<blockquote>
+<p>Chi, Yuhan. “Proofs as Observations.” September 30, 2026. <a href="https://yuhanchi.github.io/writing/proofs-as-observations/">https://yuhanchi.github.io/writing/proofs-as-observations/</a></p>
+</blockquote>
+<p>Or use the following BibTeX entry:</p>
+<pre><code class="language-bibtex">@misc{chi2026proofs,
+  author = {Chi, Yuhan},
+  title = {{Proofs as Observations}},
+  year = {2026},
+  month = sep,
+  howpublished = {Blog post},
+  url = {https://yuhanchi.github.io/writing/proofs-as-observations/}
+}</code></pre>
+</details>
