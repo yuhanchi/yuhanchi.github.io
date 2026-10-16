@@ -19,6 +19,7 @@ math: true
 * **Why do we still need mathematical models? "The bitter lesson" has said: the data and compute will definitely outperform engineered architecture.** <br>
   We need them. First, "Garbage in, garbage out". We need mathematical models to make some data more "high-quality". Secondly, sometimes we cannot directly investigate the things we want. Hence, we should use mathematical models to find proxies.
 
+{% comment %}
 ---
 
 ### An ECG biomarker for sudden cardiac death discovered with deep learning
@@ -152,3 +153,4 @@ None of this undercuts the paper's structure; it is the same method applied one 
 ### Why this structure is worth studying
 
 The mathematical habit on display is close to proof by contradiction paired with adversarial peer review: after every claim, ask "what is the strongest way this could still be wrong?", then design the one experiment that would falsify it. A less careful paper stops at Step 1 (AUC = 0.872) and calls it done. But a single high AUC proves almost nothing clinically — it can hide label noise, geographic overfitting, mechanism confounding, and selection bias, all at once. What makes this paper credible isn't model strength; it's that every one of those failure modes was hunted down, one at a time — closed where it could be, and stated plainly where the fix still falls short.
+{% endcomment %}
