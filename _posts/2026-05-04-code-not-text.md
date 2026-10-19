@@ -86,12 +86,12 @@ The narrower conclusion is: cheap CoT-surface features are domain-specific measu
 <p>Chi, Yuhan. “When CoT Surface Features Transfer.” May 4, 2026. <a href="https://yuhanchi.github.io/writing/code-not-text/">https://yuhanchi.github.io/writing/code-not-text/</a></p>
 </blockquote>
 <p>Or use the following BibTeX entry:</p>
-<pre><code class="language-bibtex">@misc{chi2026cot,
+{% raw %}<pre><code class="language-bibtex">@misc{chi2026cot,
   author = {Chi, Yuhan},
   title = {{When CoT Surface Features Transfer}},
   year = {2026},
   month = may,
   howpublished = {Blog post},
   url = {https://yuhanchi.github.io/writing/code-not-text/}
-}</code></pre>
+}</code></pre>{% endraw %}
 </details>

@@ -48,12 +48,12 @@ Verification settles truth, but understanding still lives in the mind rather tha
 <p>Chi, Yuhan. “Proofs as Observations.” September 30, 2026. <a href="https://yuhanchi.github.io/writing/proofs-as-observations/">https://yuhanchi.github.io/writing/proofs-as-observations/</a></p>
 </blockquote>
 <p>Or use the following BibTeX entry:</p>
-<pre><code class="language-bibtex">@misc{chi2026proofs,
+{% raw %}<pre><code class="language-bibtex">@misc{chi2026proofs,
   author = {Chi, Yuhan},
   title = {{Proofs as Observations}},
   year = {2026},
   month = sep,
   howpublished = {Blog post},
   url = {https://yuhanchi.github.io/writing/proofs-as-observations/}
-}</code></pre>
+}</code></pre>{% endraw %}
 </details>

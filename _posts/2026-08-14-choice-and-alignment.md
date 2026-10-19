@@ -597,12 +597,12 @@ accountable.
 <p>Chi, Yuhan. “Choice and Alignment.” August 14, 2026. <a href="https://yuhanchi.github.io/writing/choice-and-alignment/">https://yuhanchi.github.io/writing/choice-and-alignment/</a></p>
 </blockquote>
 <p>Or use the following BibTeX entry:</p>
-<pre><code class="language-bibtex">@misc{chi2026choice,
+{% raw %}<pre><code class="language-bibtex">@misc{chi2026choice,
   author = {Chi, Yuhan},
   title = {{Choice and Alignment}},
   year = {2026},
   month = aug,
   howpublished = {Blog post},
   url = {https://yuhanchi.github.io/writing/choice-and-alignment/}
-}</code></pre>
+}</code></pre>{% endraw %}
 </details>
