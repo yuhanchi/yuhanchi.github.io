@@ -1,0 +1,6 @@
+display state: phi = 67.50 deg
+R1: gap 0.207 ± 0.004   gap@state 0.176   E[Q]/b -0.858  KL 1.075  8.6 ms/update
+R2: gap 0.312 ± 0.007   gap@state 0.279   E[Q]/b -1.101  KL 0.937  60.2 ms/update
+R3: gap 0.211 ± 0.002   gap@state 0.170   E[Q]/b -0.835  KL 1.101  7.2 ms/update
+R4: gap 0.206 ± 0.002   gap@state 0.172   E[Q]/b -0.802  KL 1.131  2.9 ms/update
+R5: gap 0.211 ± 0.003   gap@state 0.173   E[Q]/b -0.784  KL 1.152  5.6 ms/update

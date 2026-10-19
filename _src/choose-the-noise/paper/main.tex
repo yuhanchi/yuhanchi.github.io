@@ -1,0 +1,76 @@
+\documentclass[11pt]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{tgpagella}
+\usepackage[sc]{mathpazo}
+\linespread{1.05}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\newtheorem{proposition}{Proposition}
+\usepackage{graphicx,booktabs,tabularx,array}
+\usepackage[font=small,labelfont=bf,skip=6pt]{caption}
+\usepackage{microtype}
+\usepackage[section]{placeins}
+\usepackage{needspace}
+\usepackage{xcolor}
+\usepackage[colorlinks=true,linkcolor={blue!40!black},urlcolor={blue!40!black},citecolor={blue!40!black}]{hyperref}
+\setlength{\parskip}{0.45em}
+\setlength{\parindent}{0pt}
+\renewcommand{\arraystretch}{1.15}
+
+\title{Choose the Noise, Keep the Flow:\\[2pt]
+  \large Noise-Space Steering of Flow and Diffusion Policies, Read as a VAE}
+\author{Yuhan Chi\\[2pt]
+  \small Fudan University\\
+  \small\url{https://yuhanchi.github.io/writing/choose-the-noise/}}
+\date{October 18, 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\noindent A family of methods steers a pretrained flow-matching or diffusion policy without
+changing its weights: a small proposer chooses the input noise for each state, and the frozen
+generator turns that noise into an action. This note collects the family, which is not
+grouped together in a recent survey of flow matching in reinforcement learning, and reads it
+through a VAE-style lens: the proposer is an encoder, the frozen generator is a decoder, the
+Gaussian is the prior, and value replaces reconstruction. For a KL-regularized objective the
+connection is an exact variational identity. It then asks where reinforcement learning takes
+effect, and organizes the methods by how they carry an action-space value back into noise space:
+a noise critic, flow inversion, backpropagation through the sampler, a one-step decoder, or a
+likelihood-ratio gradient. A two-dimensional experiment trains the same proposer with all five
+routes. This PDF is a version of a blog post; it is not peer reviewed.
+\end{abstract}
+
+\input{body}
+\input{refs}
+
+\Needspace{18\baselineskip}
+\section*{How to cite}
+If you find this note useful in your work, you can cite it as:
+
+\begin{quote}
+Chi, Yuhan. ``Choose the Noise, Keep the Flow.'' Blog post, October 18, 2026.
+\url{https://yuhanchi.github.io/writing/choose-the-noise/}
+\end{quote}
+
+or with the following BibTeX entry:
+
+\noindent\begin{minipage}{\linewidth}
+\begin{verbatim}
+@misc{chi2026choosethenoise,
+  author = {Chi, Yuhan},
+  title = {{Choose the Noise, Keep the Flow}},
+  year = {2026},
+  month = oct,
+  day = {18},
+  howpublished = {Blog post},
+  url = {https://yuhanchi.github.io/writing/choose-the-noise/}
+}
+\end{verbatim}
+\end{minipage}
+\medskip
+
+This citation refers to the explanation and synthesis above; please cite the original papers
+for their methods and results.
+\end{document}
