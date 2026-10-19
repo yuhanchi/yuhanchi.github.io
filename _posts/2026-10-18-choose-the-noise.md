@@ -199,7 +199,7 @@ for the $$K$$-step Euler sampler of Section 1, with later-step Jacobians multipl
 
 ## 4. A two-dimensional experiment
 
-To see the five routes at work, I trained the same noise proposer with each of them on a toy problem small enough to plot and to evaluate exactly. The code for this section and all figures is [on GitHub](https://github.com/yuhanchi/yuhanchi.github.io/tree/main/_src/choose-the-noise).
+To see the five routes at work, I trained the same noise proposer with each of them on a toy problem small enough to plot and to evaluate exactly. The code for this section and all figures is [on GitHub](https://github.com/Chi-Shan0707/choose-the-noise).
 
 **Setup.** Actions are points $$a \in \mathbb{R}^2$$. The base policy imitates the four-cluster mixture of Figure 2: a small velocity network (an MLP) is trained once by conditional flow matching and then frozen, and the decoder $$\psi_\theta$$ is its $$K = 10$$-step Euler sampler. The pushforward of $$\mathcal{N}(0, I)$$ through it puts between 24.9% and 25.1% of its mass on each cluster. A state is a goal angle $$s \in [0, 2\pi)$$, and the critic is known exactly: $$Q(s, a) = -\tfrac12 \Vert a - g(s) \Vert^2$$, where the goal $$g(s)$$ lies on the circle through the cluster centers. With $$\beta = 1$$, a goal between two clusters makes $$q^\star$$ bimodal. The proposer is a Gaussian $$\mathcal{N}(\mu_\phi(s), \mathrm{diag}\,\sigma_\phi(s)^2)$$ whose mean and log standard deviation come from a small MLP, initialized at the prior $$\mathcal{N}(0, I)$$.
 
