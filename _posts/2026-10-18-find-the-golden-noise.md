@@ -11,7 +11,9 @@ A recent survey by Nahim, Khan, and Ju, [A Survey of Flow Matching in Reinforcem
 
 At the center are methods that leave the velocity field untouched. They keep a pretrained flow or diffusion policy frozen and train a small network that decides **which noise to feed it**. Given a state $$s$$, a proposer picks a point $$w$$ in noise space, and the frozen generator turns $$w$$ into an action. Imagine a robot policy that sometimes reaches around an obstacle on the left and sometimes on the right. Steering the noise changes how often it chooses each route, while reusing the generator that produces the movements. And I want to call $$w$$ the golden noise.
 
-The survey already covers an important relative. Its offline section discusses ReFORM (Zhang et al., 2026), which manipulates noise inside a bounded support so that the composed policy stays within the learned behavior model's support. Its discussion of "freezing the flow and learning a correction" covers policies that *edit the action after it is generated*. DSRL (Wagenmaker et al., 2025) and related methods that *choose the input* instead of editing the output are absent. This post follows that thread, including a few neighbors that also train the decoder or learn from corrections rather than rewards.
+The flow-matching survey already covers an important relative. Its offline section discusses ReFORM (Zhang et al., 2026), which manipulates noise inside a bounded support so that the composed policy stays within the learned behavior model's support. Its discussion of "freezing the flow and learning a correction" covers policies that *edit the action after it is generated*.
+
+A broader survey by Ma et al., [Reinforcement Learning-driven Diffusion Models: Language, Vision, and Beyond](https://arxiv.org/abs/2610.21539) (2026), covers language, vision, robotics, and scientific applications. Neither survey organizes **learning the input-noise distribution of a frozen generator** as a distinct route. This post follows that thread, including a few neighbors that also train the decoder or learn from corrections rather than rewards.
 
 The post makes two points and then checks them on a small example.
 
@@ -292,7 +294,7 @@ Three neighbors are worth knowing. PDP (Zhang et al., 2026) argues that Gaussian
 
 **A practical reading rule.** If the decoder is available only through forward calls, start by considering a noise critic or a likelihood-ratio update. If corrections are available, inversion may turn them into direct supervision. If gradients are available and the sampler is short, direct backpropagation avoids critic distillation. Then check the paper's actual prior constraint and whether the decoder stays frozen; the shared diagram does not settle either question.
 
-The survey's second axis asks where the RL signal enters a flow-matching method. This family adds one more answer to that question: **the RL signal can enter through the input-noise distribution.**
+The flow-matching survey's second axis asks where the RL signal enters a flow-matching method. This family adds one more answer to that question: **the RL signal can enter through the input-noise distribution.**
 
 ## References
 
@@ -305,6 +307,7 @@ The survey's second axis asks where the RL signal enters a flow-matching method.
 - Kingma, D. P., & Welling, M. (2014). [Auto-Encoding Variational Bayes](https://arxiv.org/abs/1312.6114). *ICLR*.
 - Levine, S. (2018). [Reinforcement Learning and Control as Probabilistic Inference: Tutorial and Review](https://arxiv.org/abs/1805.00909).
 - Lu, J., Qin, X., et al. (2026). [UniSteer: Unified Noise Steering for Efficient Human-Guided VLA Adaptation](https://arxiv.org/abs/2605.10821).
+- Ma, Z., Wei, J., Wang, T., et al. (2026). [Reinforcement Learning-driven Diffusion Models: Language, Vision, and Beyond](https://arxiv.org/abs/2610.21539).
 - Machado, B., Chapin, A., Dellandréa, E., & Chen, L. (2026). [Flowing With Purpose: Latent Action Guided Flow Matching Policies for Robotic Manipulation](https://arxiv.org/abs/2606.23420). (LAFM)
 - Miao, Y., Loh, W., Poupart, P., & Kothawade, S. (2025). [A Minimalist Method for Fine-tuning Text-to-Image Diffusion Models](https://arxiv.org/abs/2506.12036). (Noise PPO)
 - Murray, M., Chen, D., Bagaria, S., et al. (2026). [FlowDAgger: Human-in-the-Loop Adaptation of Generative Robot Policies in Latent Space](https://arxiv.org/abs/2607.08877).
