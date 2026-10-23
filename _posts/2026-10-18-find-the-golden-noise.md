@@ -113,6 +113,28 @@ $$
 q^\star(w \mid s) = \frac{\mathcal{N}(w; 0, I)\, \exp\big(Q(s, \psi_\theta(s, w))/\beta\big)}{Z(s)}.
 $$
 
+<details markdown="1">
+<summary>Derivation of the variational identity</summary>
+
+Write $$p_0(w) = \mathcal{N}(w; 0, I)$$ and suppress the fixed state $$s$$. Substituting the definition of $$q^\star$$ into $$\mathrm{KL}(q_\phi \Vert q^\star)$$ and splitting the logarithm gives
+
+$$
+\begin{aligned}
+\mathrm{KL}(q_\phi \Vert q^\star)
+&= \mathbb{E}_{w \sim q_\phi}\!\left[\log \frac{q_\phi(w)}{p_0(w)\,\exp(Q(\psi_\theta(w))/\beta) / Z}\right] \\
+&= \mathbb{E}_{w \sim q_\phi}\!\left[\log \frac{q_\phi(w)}{p_0(w)}\right]
+   - \mathbb{E}_{w \sim q_\phi}\!\big[Q(\psi_\theta(w))/\beta\big]
+   + \log Z \\
+&= \mathrm{KL}\big(q_\phi \Vert \mathcal{N}(0, I)\big)
+   - \mathbb{E}_{q_\phi}\!\big[Q(\psi_\theta(w))/\beta\big]
+   + \log Z.
+\end{aligned}
+$$
+
+Rearranging terms yields $$\log Z = \mathbb{E}_{q_\phi}[Q(\psi_\theta(w))/\beta] - \mathrm{KL}(q_\phi \Vert \mathcal{N}(0, I)) + \mathrm{KL}(q_\phi \Vert q^\star)$$.
+
+</details>
+
 Writing $$J(\phi; s)$$ for the term inside the outer expectation of $$J$$, the identity also gives a ruler: for any proposer, $$\log Z(s) - J(\phi; s)/\beta = \mathrm{KL}(q_\phi \Vert q^\star)$$ measures how far it is from the best one. Section 4 uses it.
 
 The difference from an ordinary VAE is what counts as the observation. The encoder is not asked to explain an action that was seen. It is asked to infer which noise *would have produced a good action*. The evidence is desired success, represented here by the value estimate. This is why "VAE-style" is more accurate than calling every method a conditional VAE. A deterministic proposer, for example, has infinite KL to a continuous Gaussian; box constraints, spherical latents, and supervised inversion require their own objectives.
@@ -161,60 +183,64 @@ with equality when $$\psi_\theta(s, \cdot)$$ is invertible. The left side can be
 
 ## 3. Where RL takes effect: carrying value into noise space
 
-The decision variable for RL is now the noise. Much of the available supervision, however, lives in the other space. An action-space critic $$Q(s, a)$$ is ordinary temporal-difference learning on $$(s, a, r, s')$$ transitions, and offline datasets, demonstrations, and human corrections all come labeled with actions, not noises. The proposer needs a value of $$w$$, or a gradient with respect to $$w$$, of the composition
-
-$$
-w \;\longmapsto\; Q\big(s, \psi_\theta(s, w)\big).
-$$
-
-This simplifies the policy interface but not necessarily the optimization: nearby noises may have very different values. So the central design question of the family is how to **carry an action-space value back into noise space**. The papers suggest five routes, summarized in Figure 3. They are not disjoint categories: Route 4 is a special case of Route 3, and a method can combine inversion with a noise critic. What separates them is what each needs from the decoder: forward calls only, an inverse, or derivatives.
+The decision variable for RL is the noise $$w$$, whereas rewards, demonstrations, and human corrections all live in action space. Training the proposer therefore comes down to carrying signal across the composition $$w \mapsto Q\big(s, \psi_\theta(s, w)\big)$$. Depending on whether we use forward calls, an inverse, or derivatives of $$\psi_\theta$$, the literature takes five routes (Figure 3).
 
 <figure>
   <a href="{{ '/assets/img/posts/find-the-golden-noise/five-routes.svg' | relative_url }}" title="Open scalable figure"><img src="{{ '/assets/img/posts/find-the-golden-noise/five-routes.png' | relative_url }}" alt="Five rows, each with noise space on the left, the frozen decoder in the middle, and action space on the right. Route 1: a regression arrow from the action critic to a noise critic. Route 2: a corrected action inverted back through the decoder. Route 3: a gradient passing through five solver steps. Route 4: a gradient passing through one step. Route 5: returns going straight to a likelihood-ratio gradient, bypassing the decoder." width="1416" height="1202" loading="lazy"></a>
   <figcaption><strong>Figure 3.</strong> Five routes for training the noise proposer. In each row, noise space is on the left, the frozen decoder in the middle, and action space on the right. Grey dashed arrows are forward decoding; orange arrows show what crosses back into noise space. Route 1 is drawn in its two-critic form; Route 2 uses action supervision rather than a critic; Route 5 uses returns directly. Representative methods are listed at the right of each row.</figcaption>
 </figure>
 
-**Route 1: learn a critic in noise space.** One option is to learn a noise-space critic directly from rollouts, as in DSRL-SAC. DSRL-NA ("noise-aliased") instead keeps two critics. It learns $$Q^{A}(s, a)$$ by temporal-difference learning in action space, then distills it into a noise-space critic by regressing $$Q^{W}(s, w)$$ onto $$Q^{A}(s, \psi_\theta(s, w))$$ with $$w \sim \mathcal{N}(0, I)$$. The decoder is only ever run forward. Because many noises decode to similar actions, a noise that was never played can still receive an accurate value. On Robomimic Square, plain SAC in noise space (DSRL-SAC) needs about twice as many samples as DSRL-NA. On real robots, DSRL reports cases where success rose from 20% to 90% within fewer than 50 online episodes. LP-DS keeps the same two-critic design. A related forward-only idea appears in GoldenStart (Zhang et al., 2026), which picks the highest-value noise for each state by decoding candidates and scoring them with the critic, then fits a conditional VAE to these noises as a learned prior. GoldenStart is not a pure frozen-decoder method, though: its flow teacher keeps training, and the deployed policy is a distilled one-step student. *Cost:* a second approximation. LPS (Im et al., 2026) argues that a distilled critic can match values well and still point its gradient in the wrong direction.
-
-**Route 2: invert the flow and move the data.** Sometimes the signal is an action rather than a reward: a human correction, or a coarse suggestion from a vision-language model. A flow can be integrated backwards to recover the noise that would have produced that action, $$w^\star \approx \psi_\theta^{-1}(s, a^\star)$$, and the corrected actions become noise-space training targets. A generic VAE decoder has no inverse, so it relies on a learned encoder for inference. An exact ODE flow is invertible under suitable regularity assumptions; a coarse numerical sampler or a distilled decoder need not be. FlowDAgger (Murray et al., 2026) regresses the proposer onto inverted corrections. UniSteer (Lu et al., 2026) stores inverted transitions $$(s, \hat w, r, s')$$ in both a demonstration buffer and an RL buffer, and trains a noise-space critic on them by ordinary TD learning. Flow Reversal Steering (Tang et al., 2026), or FRS, maps coarse reference actions to nearby modes of a generalist policy, then distills them or uses them to bootstrap DSRL. Inversion supplies a noise that reconstructs the correction, not a sample from the reward-tilted posterior above. *Cost:* inversion error. With the short ODE schedules of robot action heads, a naive reverse Euler step is not accurate enough, which is why FlowDAgger and UniSteer both use per-step fixed-point refinement for their flow action heads. Convergence requires conditions such as a step size small relative to the velocity field's Lipschitz constant; it is not automatic.
-
-**Route 3: backpropagate through the sampling iterations.** The chain rule gives the noise gradient exactly:
+**Route 1: learn a critic in noise space.** Train an action critic $$Q^A(s, a)$$ by standard TD learning, distill it into a noise critic $$Q^W(s, w)$$ using forward decoder calls only (DSRL-NA, Wagenmaker et al., 2025; LP-DS), and update the proposer along $$\nabla_w Q^W$$:
 
 $$
-\nabla_w\, Q\big(s, \psi_\theta(s, w)\big) = \Big(\frac{\partial \psi_\theta}{\partial w}\Big)^{\!\top} \nabla_a Q(s, a),
+\min_{Q^W} \;\mathbb{E}_{s,\, w \sim \mathcal{N}(0, I)}\!\Big[\big(Q^W(s, w) - Q^A(s, \psi_\theta(s, w))\big)^2\Big], \qquad \max_\phi \;\mathbb{E}_{s,\, w \sim q_\phi(\cdot \mid s)}\!\big[Q^W(s, w)\big].
 $$
 
+DSRL-SAC instead learns $$Q^W$$ directly from rollouts, and GoldenStart (Zhang et al., 2026) scores candidate noises with $$Q^A$$ to fit a conditional VAE prior. *Cost:* critic approximation error—fitting values well does not guarantee an accurate gradient $$\nabla_w Q^W$$ (Im et al., 2026).
+
+**Route 2: invert the flow and move the data.** When supervision is a target action $$a^\star$$ (human corrections in FlowDAgger, Murray et al., 2026, and UniSteer, Lu et al., 2026; or coarse references in Flow Reversal Steering, Tang et al., 2026), backward ODE integration recovers a target noise $$w^\star$$ for supervised learning:
+
 $$
-\frac{\partial \psi_\theta}{\partial w} = \prod_{k=K-1}^{0} \Big(I + \Delta t\, \frac{\partial v_\theta}{\partial x}(x_k, t_k, s)\Big)
+w^\star = \psi_\theta^{-1}(s, a^\star) \quad \big(x_k = x_{k+1} - \Delta t\, v_\theta(x_k, t_k, s)\big), \qquad \max_\phi \;\mathbb{E}_{(s, a^\star)}\!\big[\log q_\phi(w^\star \mid s)\big].
 $$
 
-for the $$K$$-step Euler sampler of Section 1, with later-step Jacobians multiplying on the left. "Exact" here means the derivative of the implemented sampler and learned critic, not of the true environment return. With a reparameterized proposer $$w = \mu_\phi(s) + \sigma_\phi(s) \odot \epsilon$$, this is the VAE reparameterization trick with a frozen decoder, and no second critic is needed. D-Flow (Ben-Hamu et al., 2024) takes this route for per-sample noise optimization in image, audio, and molecule generation. *Cost:* the gradient has to pass through every step of the solver. DSRL calls this "computationally intensive and numerically unstable", and LPS calls it "expensive and unstable".
+*Cost:* inversion compute and error—short ODE schedules make naive reverse Euler inaccurate, requiring per-step fixed-point iteration.
 
-**Route 4: make the decoder one step.** If $$\psi_\theta$$ is a single network evaluation, the product above has a single factor, and the critic gradient reaches the noise in one backward pass. LPS (Im et al., 2026) uses a one-step MeanFlow base policy for exactly this reason, and backpropagates $$\nabla_a Q$$ straight into the latent actor without a noise-space critic. It is a useful architectural neighbor rather than a strictly frozen-decoder method: its Algorithm 1 also updates the base policy by imitation during training. ReNO (Eyring et al., 2024) does the same per sample with reward models on one-step image generators, and Noise Hypernetworks (Eyring et al., 2025) train a proposer on distilled one- or few-step generators (SD-Turbo, SANA-Sprint, FLUX-Schnell). With a few steps the chain in Route 3 is short rather than trivial, which is still cheap. *Cost:* the base policy must be one-step, which usually means it was trained or distilled for that purpose.
+**Route 3: backpropagate through the sampling iterations.** With reparameterization $$w = \mu_\phi(s) + \sigma_\phi(s) \odot \epsilon$$, the chain rule differentiates straight through the $$K$$-step Euler solver (D-Flow, Ben-Hamu et al., 2024):
 
-**Route 5: skip the transfer.** The likelihood-ratio gradient of the return term, $$\mathbb{E}\big[\nabla_\phi \log q_\phi(w \mid s)\, A(s, w)\big]$$ with an advantage estimate $$A$$, needs only $$\log q_\phi$$, which is exact for a Gaussian proposer: no ODE divergence, no SDE conversion, no surrogate likelihood. Much of the survey's online-RL section is about recovering a usable likelihood for flow policies; in noise space the problem does not arise. Noise PPO treats text-to-image generation as a one-step MDP whose action is the initial noise, and runs PPO with sampled rewards; KL and entropy regularizers contribute additional gradient terms. GoRL (Zhang et al., 2025) applies PPO to a Gaussian noise encoder in online control while refitting its decoder in alternating phases (Section 6). *Cost:* the usual variance of score-function estimates.
+$$
+\nabla_w\, Q\big(s, \psi_\theta(s, w)\big) = \Big(\frac{\partial \psi_\theta}{\partial w}\Big)^{\!\top} \nabla_a Q(s, a), \qquad \frac{\partial \psi_\theta}{\partial w} = \prod_{k=K-1}^{0} \Big(I + \Delta t\, \frac{\partial v_\theta}{\partial x}(x_k, t_k, s)\Big).
+$$
+
+*Cost:* backpropagating through all $$K$$ solver steps is memory-intensive and numerically unstable for multi-step policies.
+
+**Route 4: make the decoder one step.** For a one-step generator ($$K = 1$$, $$a = w + v_\theta(w, 0, s)$$), the Jacobian product in Route 3 collapses to a single factor (LPS, Im et al., 2026; ReNO, Eyring et al., 2024; Noise Hypernetworks, Eyring et al., 2025):
+
+$$
+\nabla_w\, Q\big(s, \psi_\theta(s, w)\big) = \Big(I + \frac{\partial v_\theta}{\partial w}(w, 0, s)\Big)^{\!\top} \nabla_a Q(s, a).
+$$
+
+*Cost:* requires training or distilling a one-step generator first.
+
+**Route 5: skip the transfer.** Treating the decoder and critic as a black box, the score-function (REINFORCE / PPO) gradient updates $$q_\phi$$ from scalar advantages $$A(s, w)$$ alone (Noise PPO, Miao et al., 2025; GoRL, Zhang et al., 2025):
+
+$$
+\nabla_\phi \mathbb{E}_{w \sim q_\phi(\cdot \mid s)}\!\big[Q(s, \psi_\theta(s, w))\big] = \mathbb{E}_{w \sim q_\phi(\cdot \mid s)}\!\Big[\nabla_\phi \log q_\phi(w \mid s)\, A(s, w)\Big].
+$$
+
+For a Gaussian proposer, $$\log q_\phi(w \mid s)$$ is closed-form, bypassing ODE divergence integrals entirely. *Cost:* high score-function gradient variance.
 
 ## 4. A two-dimensional experiment
 
-To see the five routes at work, I trained the same noise proposer with each of them on a toy problem small enough to plot and to evaluate exactly. The code for this section and all figures is [on GitHub](https://github.com/Chi-Shan0707/find-the-golden-noise).
-
-**Setup.** Actions are points $$a \in \mathbb{R}^2$$. The base policy imitates the four-cluster mixture of Figure 2: a small velocity network (an MLP) is trained once by conditional flow matching and then frozen, and the decoder $$\psi_\theta$$ is its $$K = 10$$-step Euler sampler. The pushforward of $$\mathcal{N}(0, I)$$ through it puts between 24.9% and 25.1% of its mass on each cluster. A state is a goal angle $$s \in [0, 2\pi)$$, and the critic is known exactly: $$Q(s, a) = -\tfrac12 \Vert a - g(s) \Vert^2$$, where the goal $$g(s)$$ lies on the circle through the cluster centers. With $$\beta = 1$$, a goal between two clusters makes the target policy $$\pi^\star$$ bimodal. The proposer is a Gaussian $$\mathcal{N}(\mu_\phi(s), \mathrm{diag}\,\sigma_\phi(s)^2)$$ whose mean and log standard deviation come from a small MLP, initialized at the prior $$\mathcal{N}(0, I)$$.
-
-Because $$Q$$ is given, the experiment isolates the transfer step: there is no TD learning and no exploration. The ruler from Section 2 measures the result: $$\mathrm{KL}(q_\phi \Vert q^\star) = \log Z(s) - J(\phi; s)/\beta$$, estimated by Monte Carlo and averaged over 64 evenly spaced states.
-
-**How the noise moves.** Figure 4 follows one state during training with Route 3. The proposer starts as the prior, so the actions are the base policy. Within a few dozen updates, the noise cloud shrinks and slides into the region of noise space that decodes to the cluster nearest the goal; the actions follow it without any change to the decoder.
-
-In this state the goal lies between two clusters, so the target policy is bimodal. One Gaussian is nonetheless enough to reach both: the two clusters decode from adjacent regions of noise space, and the proposer settles across their shared boundary. **A distribution that is bimodal in action space can be unimodal in noise space.** What the Gaussian cannot match is the shape of $$q^\star$$, which is cut off sharply along the grey lines; a few of its samples also still decode to the two far clusters. The remaining $$\mathrm{KL}(q_\phi \Vert q^\star)$$ at this state is about 0.17 nats.
+To see the five routes at work, I trained the same Gaussian proposer $$q_\phi(w \mid s) = \mathcal{N}(\mu_\phi(s), \mathrm{diag}\,\sigma_\phi(s)^2)$$ on a 2D toy where $$q^\star$$ is known ([code on GitHub](https://github.com/Chi-Shan0707/find-the-golden-noise)). A frozen $$K = 10$$-step Euler flow $$\psi_\theta$$ maps $$\mathcal{N}(0, I)$$ to the four clusters of Figure 2, and each state $$s \in [0, 2\pi)$$ sets a goal $$g(s)$$ with exact critic $$Q(s, a) = -\tfrac12 \Vert a - g(s) \Vert^2$$ ($$\beta = 1$$). In Figure 4, the goal sits between two clusters so the target policy is bimodal in action space, yet a single Gaussian proposer can straddle both because they decode from adjacent wedges of noise space (**a bimodal action target can be unimodal in noise space**).
 
 <figure>
   <a href="{{ '/assets/img/posts/find-the-golden-noise/experiment-training.svg' | relative_url }}" title="Open scalable figure"><img src="{{ '/assets/img/posts/find-the-golden-noise/experiment-training.png' | relative_url }}" alt="Two rows of five panels over training. Top: a Gaussian noise cloud that starts at the standard normal and moves into one wedge of noise space. Bottom: the decoded actions, which start as four clusters and concentrate on the cluster nearest the goal star." width="1367" height="636" loading="lazy"></a>
   <figcaption><strong>Figure 4.</strong> Learning which noise to choose, for one state (goal angle 67.5°) with Route 3. Columns are snapshots during training. Top: samples from the proposer \(q_\phi(w \mid s)\) (dots) and its two-standard-deviation ellipse (orange), over the exact tilted posterior \(q^\star\) for the learned decoder (shading); grey lines separate the noise regions that decode to different clusters. Bottom: the same samples after the frozen 10-step decoder, over the tilted target policy \(\pi_{\text{base}}\, e^{Q/\beta}\) (shading, computed from the mixture the flow imitates); the star is the goal and dashed circles are contours of \(Q\). The decoder never changes; only the noise does.</figcaption>
 </figure>
 
-**Comparing the routes.** Each route trains the same proposer for 2,000 updates, each on 1,024 decoded noises (256 states with 4 noises each), and is run with three seeds. Routes 1, 3, 4, and 5 maximize the objective $$J$$ of Section 2, using a distilled noise critic, gradients through the 10 Euler steps, gradients through a one-step decoder distilled from the 10-step sampler, and a likelihood-ratio gradient with a leave-one-out baseline. Route 2 never sees $$Q$$. It receives "corrected" actions sampled from the tilted target policy, a stand-in for an expert, inverts them through the decoder by fixed-point iteration, and fits the proposer to the recovered noises by maximum likelihood. Table 3 and Figure 5 summarize the outcome.
-
 <figure class="table" markdown="1">
-<figcaption style="margin: 0 0 .4em"><strong>Table 3.</strong> Five routes on the 2D toy. \(\mathrm{KL}(q_\phi \Vert q^\star)\) is averaged over 64 states (mean ± standard deviation over three seeds; lower is better). Time is the median wall-clock time per update on a laptop GPU (RTX 5060), including Python overhead. Route 4 is measured against the posterior of its own one-step decoder.</figcaption>
+<figcaption style="margin: 0 0 .4em"><strong>Table 3.</strong> Five routes on the 2D toy (2,000 updates, 256 states \(\times\) 4 noises per update). \(\mathrm{KL}(q_\phi \Vert q^\star) = \log Z(s) - J(\phi; s)/\beta\) is averaged over 64 states (mean ± standard deviation over three seeds; lower is better). Time is the median wall-clock time per update on an RTX 5060 GPU. Route 4 is measured against the posterior of its own one-step decoder.</figcaption>
 
 | Route | Needs from the decoder | $$\mathrm{KL}(q_\phi \Vert q^\star)$$ | ms / update |
 |---|---|---|---|
@@ -232,13 +258,19 @@ In this state the goal lies between two clusters, so the target policy is bimoda
   <figcaption><strong>Figure 5.</strong> Five routes, one proposer. (a) The final proposer of each route for the same state as Figure 4, drawn as in Figure 4 (seed 0). (b) \(\mathrm{KL}(q_\phi \Vert q^\star)\) averaged over 64 states during training; lines are means and bands span three seeds. The dashed line is the best single Gaussian fitted to each state separately.</figcaption>
 </figure>
 
-Three things stand out.
+Routes 1, 3, 4, and 5 all converge to roughly the same point (0.206–0.211 nats, close to the single-Gaussian ceiling of 0.198), differing mainly in their trajectories and speed (Route 4 takes 2.9 ms per update; Route 1 lags early on while its noise critic warms up).
 
-- **The four routes that maximize $$J$$ end in the same place.** Routes 1, 3, 4, and 5 reach 0.206–0.211 nats, against 0.198 for the best single Gaussian fitted to each state separately. In this toy the remaining error comes from the Gaussian family, not from the transfer route, and amortizing over states costs little.
-- **They differ in how they get there.** Route 1 starts slowly, because its noise critic has to be learned before its gradient means anything (Figure 5b). The cost per update spans a factor of twenty: 2.9 ms through the one-step decoder, 7.2 ms through ten Euler steps, and 60 ms for inversion.
-- **Route 2 settles higher, and not because inversion fails.** Fixed-point inversion reconstructs the corrected actions to a median error of about $$10^{-7}$$; a single naive reverse Euler pass per step leaves a median error of 0.05, about an eighth of a cluster's standard deviation (0.38). The difference lies in the objective. Maximum likelihood on samples from the target minimizes $$\mathrm{KL}(q^\star \Vert q_\phi)$$, which favors a wider Gaussian that covers the posterior (Figure 5a), while the ruler measures $$\mathrm{KL}(q_\phi \Vert q^\star)$$. Corrections teach the proposer to imitate the target, not to optimize the objective.
+Route 2 settles higher (0.312), not because fixed-point inversion fails (its reconstruction error is $$\sim 10^{-7}$$), but because it optimizes the forward KL rather than the reverse KL:
 
-These numbers come from a deliberately easy setting: two dimensions, an exact critic, and a smooth decoder. They say nothing about critic error, about the variance of Route 5 in high dimensions, or about the instability that DSRL and LPS report for Route 3 with large decoders. What the toy does show is the shape of the problem: the decoder fixes which actions are reachable, the proposer only decides how much noise to send to each region, and a single Gaussian must choose between regions when the target has several.
+$$
+\text{Routes 1, 3, 4, 5 (RL):}\quad \min_\phi\, \mathrm{KL}(q_\phi \Vert q^\star) = \mathbb{E}_{w \sim q_\phi}\!\left[\log \frac{q_\phi(w \mid s)}{q^\star(w \mid s)}\right],
+$$
+
+$$
+\text{Route 2 (MLE on } w^\star \sim q^\star\text{):}\quad \min_\phi\, \mathrm{KL}(q^\star \Vert q_\phi) = \mathbb{E}_{w^\star \sim q^\star}\!\left[\log \frac{q^\star(w^\star \mid s)}{q_\phi(w^\star \mid s)}\right].
+$$
+
+Reverse KL is *mode-seeking*: it penalizes spilling across the grey boundaries into low-value wedges and pulls the Gaussian tight. Forward KL is *mode-covering*: maximum likelihood stretches the Gaussian to cover all inverted samples (Figure 5a), spilling into adjacent low-value regions.
 
 ## 5. A map of the family
 
@@ -270,23 +302,17 @@ Three neighbors are worth knowing. PDP (Zhang et al., 2026) argues that Gaussian
 
 ## 6. What the VAE view explains
 
-**The decoder fixes the map, not a safety guarantee.** With a frozen decoder, every steered action lies in the image of $$\psi_\theta(s, \cdot)$$. For finite $$Q$$ and positive $$\beta$$, the ideal tilted policy has the same support as the base policy. But support is not the same as likely or reliable behavior: a Gaussian-driven invertible flow can have full support, including actions far from the demonstrations. ReFORM makes a stronger construction by bounding the source support; relating its learned model's support to the dataset still depends on how well that model fits. A truly unreachable action cannot be recovered by steering, while a very unlikely action might be. GoRL (Zhang et al., 2025) changes the map itself by training the decoder again. Its decoder starts as an identity-like map. Training then alternates between two phases: optimizing a Gaussian encoder with a KL penalty toward $$\mathcal{N}(0, I)$$ while the decoder is frozen, and refitting the decoder by flow matching on recent rollouts while the encoder is frozen.
+**Support and latent holes.** A frozen decoder restricts actions to the image of $$\psi_\theta(s, \cdot)$$, and for finite $$Q$$ and $$\beta > 0$$ the tilted policy shares the base policy's support. Mathematical support, however, is not a safety guarantee: just as a VAE decodes poorly in low-density holes of its prior, a frozen flow breaks when queried outside typical Gaussian regions. Different methods keep $$w$$ out of those holes in different ways—clipping to $$[-b, b]^d$$ (DSRL), restricting $$w$$ to the $$\sqrt{d}$$ sphere (LPS), bounding $$\mathbb{E}\Vert\Delta\Vert^2$$ (LP-DS), or bounding the source ball (ReFORM)—while Golden Ticket (Patil et al., 2026) uses a single state-independent vector and GoRL (Zhang et al., 2025) updates the decoder itself.
 
-**$$\beta$$ is a dial between the base policy and high-value actions.** For a fixed, well-behaved $$Q$$, as $$\beta \to \infty$$ the ideal proposer approaches the prior and the system returns to the base policy. This resembles posterior collapse in a VAE, though here returning to the base can be intentional. As $$\beta \to 0$$, mass concentrates near maximizers, when they exist. Multiple equally good actions—or multiple noises for one action—can remain; a single point mass is not inevitable. LP-DS reports that prior-replacing steering can lose modes, and uses a residual trust region whose multiplier plays a role similar to $$\beta$$, for its surrogate penalty. Golden Ticket (Patil et al., 2026) imposes a different restriction: one noise vector shared across states. It is not the general low-temperature limit of a state-conditioned proposer.
+**Aliasing.** Distinct noises often decode to similar actions. DSRL-NA turns this redundancy into sample efficiency by sharing $$Q^A$$ values across unvisited noises, while in the data processing inequality $$\mathrm{KL}(\pi_\phi \Vert \pi_{\text{base}}) \le \mathrm{KL}(q_\phi \Vert \mathcal{N}(0, I))$$, aliasing explains the gap: KL budget spent redistributing probability among noises that produce identical actions does not change the action distribution.
 
-**Holes in the latent space.** A VAE can decode poorly in regions its training rarely visits. A Gaussian-driven flow can have the same problem: most training draws come from typical regions of the Gaussian. The family uses several ways to discourage atypical queries, with different strengths. DSRL bounds each noise coordinate in $$[-b,b]$$ and reports that $$b$$ between 1 and 3 works well online. A box bounds coordinates; it does not by itself enforce the Gaussian's typical radius. LPS trains both its base policy and its latent actor on the sphere of radius $$\sqrt{d}$$, where high-dimensional Gaussian mass concentrates, to prevent what it calls "norm explosion"; strictly, its prior is uniform on that sphere rather than $$\mathcal{N}(0, I)$$. LP-DS bounds the squared norm of its residual, its stand-in for the KL.
-
-**Aliasing makes some noise changes redundant.** Many noises can decode to similar actions. This is related to latent ambiguity, but distinct from the statistical non-identifiability of a VAE's latent coordinates. DSRL-NA turns this weakness into data sharing across noises. The same fact explains why the noise KL is only an upper bound: when the decoder is genuinely many-to-one, part of the KL budget can be spent on redistributing noise among identical outputs. For an invertible flow the KLs remain equal, even if different noises produce very similar actions.
-
-**Amortization has a gap.** Optimizing noise separately for each sample (D-Flow, ReNO) and training a proposer that predicts it (Noise Hypernetworks, whose subtitle is "Amortizing Test-Time Compute") are the policy-side versions of per-datapoint variational inference and an amortized encoder. The cost of amortization has a name in the VAE literature, the amortization gap (Cremer et al., 2018). Noise Hypernetworks report recovering a substantial portion of the gains of explicit test-time optimization at a fraction of its cost, which illustrates the quality–compute tradeoff. That comparison is not, by itself, a measurement of the formal variational amortization gap.
+**Amortization cost.** Optimizing $$w$$ per sample at test time (D-Flow, ReNO) versus training a proposer $$q_\phi(w \mid s)$$ (Noise Hypernetworks) mirrors per-datapoint variational inference versus an amortized encoder: amortization trades an optimality gap (Cremer et al., 2018) for a single forward pass at deployment.
 
 ## 7. Open questions and takeaway
 
-- **When is a policy steerable?** DSRL notes that the base policy must be "steerable" for the method to work and studies when this holds empirically, but does not give a formal definition. Nothing in the construction guarantees useful steering in advance. It helps to separate three questions: can the decoder produce a good action, does the allowed proposer put enough probability on its preimages, and can the learning signal find them? Invertibility addresses only the first.
-- **How does the number of sampling steps matter?** Noise PPO finds the largest gains at few inference steps; the benefit shrinks, but does not disappear, as the number of steps grows. Several robot papers rely on one-step or few-step decoders for different reasons: cheap Jacobians for LPS, low latency for robot control. Few steps are not free, however: FlowDAgger finds that coarse steps make naive inversion inaccurate.
-- **When should the decoder be trained?** Freezing the decoder preserves the learned map and can improve sample efficiency; training it, as in GoRL, can change which useful behaviors are easy to represent. Where a pretrained policy should sit between the two is not settled.
-
-**A practical reading rule.** If the decoder is available only through forward calls, start by considering a noise critic or a likelihood-ratio update. If corrections are available, inversion may turn them into direct supervision. If gradients are available and the sampler is short, direct backpropagation avoids critic distillation. Then check the paper's actual prior constraint and whether the decoder stays frozen; the shared diagram does not settle either question.
+- **How should the encoder–decoder pair be trained: decoupled or jointly?** Almost every method here freezes the pretrained decoder and only updates the noise encoder; GoRL is a rare exception that alternates between the two. Whether decoupled or joint training works better—and what update ratio between encoder and decoder gives the best performance—has barely been explored.
+- **Where is the Pareto frontier among the five routes?** Each route has clear trade-offs: critic distillation (Route 1) risks gradient mismatch, inversion (Route 2) minimizes the forward KL at high per-step cost, multi-step backpropagation (Route 3) is heavy and unstable, one-step distillation (Route 4) alters the base model, and likelihood-ratio updates (Route 5) suffer from high variance. Finding a Pareto-optimal recipe for RL fine-tuning remains hard.
+- **How much steerability can initial noise alone provide?** Diffusion and flow policies owe much of their multimodal expressiveness to dense, multi-step denoising. If adaptation is restricted to choosing the initial noise $$x_0 = w$$—and $$w$$ cannot stray far from the prior without hitting latent holes—how much steerability does that actually leave, and when is steering $$x_0$$ simply too weak?
 
 The flow-matching survey's second axis asks where the RL signal enters a flow-matching method. This family adds one more answer to that question: **the RL signal can enter through the input-noise distribution.**
 
