@@ -38,7 +38,7 @@ Code blocks are highlighted; ` ```mermaid ` blocks render as diagrams.
 To show an optional image on the Writing index, add `preview_image` (an asset path)
 and `preview_alt` (a short image description) to the post's front matter. Use an
 existing figure when possible. Posts without these fields keep a text-only entry;
-preview images are displayed in full without cropping.
+preview images appear in a frame below the summary, uncropped.
 
 ## Other designs
 

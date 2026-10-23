@@ -10,7 +10,7 @@
     <ul class="post-list">
       {%- for p in y.items %}
       <li class="post-item">
-        <a class="writing-entry{% if p.preview_image %} writing-entry--illustrated{% endif %}" href="{{ p.url | relative_url }}">
+        <a class="writing-entry" href="{{ p.url | relative_url }}">
           <div class="post-copy">
             <div class="post-entry-meta">
               <time class="post-date" datetime="{{ p.date | date_to_xmlschema }}">{{ p.date | date: "%b %-d" }}</time>
