@@ -4,6 +4,8 @@ date: "2026-09-30"
 description: "A question about AI and mathematics: could the proofs we obtain become the starting point for what we understand?"
 category: "musings"
 tags: ["mathematics", "AI", "reflection"]
+preview_image: "/assets/img/posts/proofs-as-observations.png"
+preview_alt: "A cycle of conjectures, verified AI proofs, observations, and mathematical understanding."
 ---
 ## What happens after an AI produces a proof?
 

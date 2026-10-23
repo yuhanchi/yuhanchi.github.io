@@ -35,6 +35,11 @@ math: true              # loads MathJax: $inline$, $$display$$
 
 Code blocks are highlighted; ` ```mermaid ` blocks render as diagrams.
 
+To show an optional image on the Writing index, add `preview_image` (an asset path)
+and `preview_alt` (a short image description) to the post's front matter. Use an
+existing figure when possible. Posts without these fields keep a text-only entry;
+preview images are displayed in full without cropping.
+
 ## Other designs
 
 The other 19 candidate designs were moved, without personal data, into a separate reusable kit

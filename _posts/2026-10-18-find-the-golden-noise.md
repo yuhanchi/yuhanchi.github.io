@@ -6,6 +6,8 @@ category: "tech"
 tags: ["AI", "reinforcement-learning", "flow-matching", "robotics"]
 math: true
 pdf: "/files/find-the-golden-noise.pdf"
+preview_image: "/assets/img/posts/find-the-golden-noise/vae-correspondence.png"
+preview_alt: "The encoder–decoder correspondence between a VAE and noise-space policy steering."
 ---
 Two recent surveys map out reinforcement learning for flow and diffusion models: Nahim, Khan, and Ju's [A Survey of Flow Matching in Reinforcement Learning](https://arxiv.org/abs/2610.16275) (TMLR, 2026), which organizes the field by *what* the flow models (actions, critics, dynamics) and *where* the RL signal enters (energy-weighted regression, policy gradients through the ODE, GRPO-style objectives), and Ma et al.'s broader [Reinforcement Learning-driven Diffusion Models: Language, Vision, and Beyond](https://arxiv.org/abs/2610.21539) (2026). Both are useful maps, and the flow-matching survey touches on a few pieces of what follows—such as ReFORM (Zhang et al., 2026) in offline RL, or residual policies that edit an action *after* it is generated. Still, neither survey brings together **steering a frozen generator through its input noise** as a distinct family.
 

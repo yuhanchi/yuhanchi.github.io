@@ -10,9 +10,21 @@
     <ul class="post-list">
       {%- for p in y.items %}
       <li class="post-item">
-        <a class="post-link" href="{{ base }}/writing/{{ p.slug }}/">{{ p.title }}</a>
-        <time class="post-date" datetime="{{ p.date | date_to_xmlschema }}">{{ p.date | date: "%b %-d" }}</time>
-        {%- if p.description %}<p class="post-excerpt">{% if p.category %}<span class="post-cat">{{ p.category | capitalize }}</span> {% endif %}{{ p.description }}</p>{% endif %}
+        <a class="writing-entry{% if p.preview_image %} writing-entry--illustrated{% endif %}" href="{{ p.url | relative_url }}">
+          <div class="post-copy">
+            <div class="post-entry-meta">
+              <time class="post-date" datetime="{{ p.date | date_to_xmlschema }}">{{ p.date | date: "%b %-d" }}</time>
+              {%- if p.category %}<span class="post-cat">{{ p.category | capitalize }}</span>{% endif %}
+            </div>
+            <span class="post-link">{{ p.title }}</span>
+            {%- if p.description %}<p class="post-excerpt">{{ p.description }}</p>{% endif %}
+          </div>
+          {%- if p.preview_image %}
+          <div class="post-preview">
+            <img src="{{ p.preview_image | relative_url }}" alt="{{ p.preview_alt | default: '' | escape }}" loading="lazy" decoding="async">
+          </div>
+          {%- endif %}
+        </a>
       </li>
       {%- endfor %}
     </ul>

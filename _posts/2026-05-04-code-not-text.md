@@ -4,6 +4,8 @@ date: "2026-05-04"
 description: "A technical note on measurement non-invariance across math, science, and coding reasoning traces."
 category: "tech"
 tags: ["AI", "code", "mathematics"]
+preview_image: "/assets/img/posts/cot-math-vs-coding.png"
+preview_alt: "A correct math reasoning trace beside an incorrect coding trace."
 ---
 This note summarizes my project [code-not-text](https://github.com/Chi-Shan0707/code-not-text). The interactive version is here: [demo](https://chi-shan0707.github.io/code-not-text/demo/). The full technical report is here: [PDF report](https://github.com/Chi-Shan0707/code-not-text/blob/main/project_report/project_report.pdf).
 
