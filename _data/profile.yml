@@ -67,7 +67,7 @@ publications:
 
 experience:
   - when: Sep 2025 – present
-    title: B.S. in Information & Computing Science and Artificial Intelligence (double degree)
+    title: B.S. in Information & Computing Science
     org: Fudan University, School of Mathematical Sciences
     detail: GPA 3.98 / 4.00 · Rank 3 / 228
   - when: Jul – Aug 2026
@@ -106,6 +106,7 @@ talks:
 
 service:
   - Reviewer, ICML 2026 Workshop on AI for Math (AI4Math)
+  - Assistant Counselor (2026 Undergraduate Cohort), School of Mathematical Sciences, Fudan University
   - Founder, Fudan Open Source Initiative
 
 honors:

@@ -5,7 +5,7 @@
     </figure>
     <div class="profile-main">
       <h1 class="profile-name">{{ profile.name }} <span class="native" lang="zh">{{ profile.native_name }}</span></h1>
-      <p class="profile-role">{{ profile.role }}<br><a href="{{ profile.affiliation_url }}">{{ profile.affiliation }}</a></p>
+      <p class="profile-role">{{ profile.role }} · <a href="{{ profile.affiliation_url }}">{{ profile.affiliation }}</a></p>
       <p class="profile-links">
         {%- for l in profile.links %}<a href="{{ l.url | relative_url }}">{{ l.name }}</a>{% unless forloop.last %}<span class="sep" aria-hidden="true"> · </span>{% endunless %}{% endfor -%}
       </p>

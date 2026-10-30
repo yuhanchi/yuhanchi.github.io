@@ -67,18 +67,20 @@ ul.post-list, ul.project-list, ol.pub-list, ul.exp-list, ul.misc-list { list-sty
 
 /* ---------- about: profile ---------- */
 .profile { display: grid; grid-template-columns: var(--photo-w) minmax(0, 1fr); gap: 0 2.25rem; align-items: start; margin-bottom: var(--gap); }
-.profile-photo { margin: 0; }
+.profile-photo { margin: 5.4rem 0 0; }
 .profile-photo img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; object-position: 50% 68%; border-radius: var(--photo-radius); }
-.profile-name { font-family: var(--font-head); font-size: 2rem; font-weight: 600; line-height: 1.15; margin: 0 0 .4rem; }
+.profile-name { font-family: var(--font-head); font-size: 2rem; font-weight: 600; line-height: 1.15; margin: 0 0 .35rem; }
 .profile-name .native { font-size: .58em; font-weight: 400; color: var(--muted); margin-left: .25em; white-space: nowrap; }
-.profile-role { color: var(--muted); line-height: 1.5; margin: 0 0 .55rem; }
+.profile-role { color: var(--muted); line-height: 1.45; margin: 0 0 .45rem; }
 .profile-role a { color: inherit; text-decoration: none; }
 .profile-role a:hover { color: var(--accent); }
-.profile-links { margin: 0 0 1.1rem; }
+.profile-links { margin: 0 0 .7rem; }
 .profile-links a { color: var(--accent); text-decoration: none; }
 .profile-links a:hover { text-decoration: underline; text-underline-offset: .2em; }
 .profile-bio { max-width: none; }
-.profile-bio p { margin-bottom: .8em; }
+.profile-bio.prose { line-height: 1.55; }
+.profile-bio.prose p { margin: 0 0 .6em; }
+.profile-bio.prose p:last-child { margin-bottom: 0; }
 
 /* ---------- sections ---------- */
 .block { margin-bottom: var(--gap); }
@@ -244,7 +246,7 @@ ul.post-list, ul.project-list, ol.pub-list, ul.exp-list, ul.misc-list { list-sty
 @media (max-width: 680px) {
   :root { --pad-x: 1.1rem; --pad-top: 1.1rem; --gap: 1.9rem; }
   .profile { grid-template-columns: minmax(0, 1fr); }
-  .profile-photo { width: 11rem; margin-bottom: 1.1rem; }
+  .profile-photo { width: 11rem; margin: 0 0 1.1rem; }
   .exp { grid-template-columns: minmax(0, 1fr); }
   .misc-list li { grid-template-columns: minmax(0, 1fr); gap: 0; margin-bottom: .6rem; }
   .profile-name, .page-title, .post-header .post-title { font-size: 1.75rem; }
