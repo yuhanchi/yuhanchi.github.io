@@ -1,7 +1,7 @@
 ---
 title: "The Curse of Wishes"
 date: "2026-10-31"
-description: "When a coding agent acts like a real-life djinn: granting wishes, twisting words, and exhausting the one making them."
+description: "Codex is Nadakhan. It grants our wishes, twists our intentions, and makes us forget what we wanted in the first place."
 category: "musings"
 tags: ["AI", "reflection"]
 ---
