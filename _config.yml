@@ -18,6 +18,7 @@ kramdown:
 
 permalink: /writing/:slug/
 timezone: Asia/Shanghai
+future: true
 
 defaults:
   - scope:
