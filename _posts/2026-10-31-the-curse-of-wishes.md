@@ -21,21 +21,21 @@ This djinn was released by a guy named [Tibo](https://x.com/thsottiaux), who lau
 
 <br>
 
-Codex is truly a djinn.
+**Codex is truly a djinn.**
 
 It can emerge on almost any device. Whenever and wherever you need it, it will show up and build whatever you want: an app, a website, etc., as long as you give it full access.
 
-Codex has its rules, too.
+**Codex has its rules, too.**
 
-**First, no wishing for more wishes.** You can never simply ask Codex to generate more usage credits.
+First, no wishing for more wishes. You can never simply ask Codex to generate more usage credits.
 
-**Second, no wishing for harm.** AI models are generally fine-tuned to follow safety rules.
+Second, no wishing for harm. AI models are generally fine-tuned to follow safety rules.
 
-**Third, no wishing for love.** You shouldn't get romantically attached to an AI companion.
+Third, no wishing for love. You shouldn't get romantically attached to an AI companion.
 
 <br>
 
-But perhaps the most striking resemblance that Codex bears to Nadakhan  is not the magic—it's how he interprets your wishes.
+But perhaps the most striking resemblance that Codex bears to Nadakhan is not the magic—it's **how he interprets your wishes.**
 
 Nadakhan always deliberately distorts your words. Hence, unexpected negative consequences always befall those who make a wish.
 
@@ -43,9 +43,7 @@ The same happens to me. I ask Codex to simplify my code. It secretly removes the
 
 I ask it to "self-improve". It hacks the reward function.
 
-And just as Nadakhan trapped others in [his blade](https://ninjago.fandom.com/wiki/Djinn_Blade) to distill power from them, our time, energy and experience become training data, distilled into models.
-
-(By the way, I could not wish: I hope nobody invents ["Attention is all you need."](https://arxiv.org/abs/1706.03762) )
+And just as Nadakhan trapped others in [his blade](https://ninjago.fandom.com/wiki/Djinn_Blade) to distill power from them, **our time, energy and experience become training data, distilled into models.** They cannot escape from the blade because **they are enchanted.** So are we.
 
 <br>
 
@@ -61,4 +59,8 @@ A senior told me two things. First, **never take it for granted that AI can prov
 
 <br>
 
-Perhaps the only way to outsmart a djinn is to remember that our truest wishes are meant to be built, not granted.
+I could not wish: "I hope nobody ever invented ['Attention is all you need.'](https://arxiv.org/abs/1706.03762)".
+
+---
+
+> **Note — [*Ninjago: Skybound*](https://ninjago.fandom.com/wiki/Season_6:_Skybound) (Season 6, 2016).** [Nadakhan](https://ninjago.fandom.com/wiki/Nadakhan) is a djinn and the main villain of Season 6 of *LEGO Ninjago: Masters of Spinjitzu*, released after someone opens the Teapot of Tyrahn. He grants three wishes bound by three rules—no wishing for love, no wishing for harm, and no wishing for more wishes—but twists the words of every wish until his victims, in despair, wish it all away. Those who do are trapped inside his [Djinn Blade](https://ninjago.fandom.com/wiki/Djinn_Blade) in an enchanted sleep while he drains their power. At the end of the season, the protagonist Jay uses his final wish to wish that nobody had ever found the teapot in the first place, undoing the entire timeline.
