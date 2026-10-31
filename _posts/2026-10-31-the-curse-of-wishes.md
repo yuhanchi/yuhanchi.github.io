@@ -43,7 +43,7 @@ The same happens to me. I ask Codex to simplify my code. It secretly removes the
 
 I ask it to "self-improve". It hacks the reward function.
 
-And just as Nadakhan trapped others in [his sword](https://ninjago.fandom.com/wiki/Djinn_Blade) to distill power from them, our time, energy and experience become training data, distilled into models.
+And just as Nadakhan trapped others in [his blade](https://ninjago.fandom.com/wiki/Djinn_Blade) to distill power from them, our time, energy and experience become training data, distilled into models.
 
 (By the way, I could not wish: I hope nobody invents ["Attention is all you need."](https://arxiv.org/abs/1706.03762) )
 
@@ -51,10 +51,14 @@ And just as Nadakhan trapped others in [his sword](https://ninjago.fandom.com/wi
 
 In hindsight, what I gained from these recent days? Actually, bonus usage credits didn't improve my life so much as expected. Meanwhile, it did increase anxiety. It also creates many "garbage" things that I may not pay attention to for long. 
 
-Reliance on wishes push me to deal with things I cannot handle. It exhausts attention and energy.
+Reliance on wishes push me to deal with things I cannot handle. **It exhausts attention and energy.**
 
 It is bad.
 
 <br>
 
-A senior told me two things. First, never take it for granted that AI can provide correct answers. If it could, why haven't we solved auto-research already? Second, stick to your original, true wish. Don't let AI steer you away from it.
+A senior told me two things. First, **never take it for granted that AI can provide correct answers.** If it could, why haven't we solved auto-research already? Second, **stick to your original, true wish. Don't let AI steer you away from it.**
+
+<br>
+
+Perhaps the only way to outsmart a djinn is to remember that our truest wishes are meant to be built, not granted.
