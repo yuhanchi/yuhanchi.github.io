@@ -12,10 +12,14 @@
   --font-sc: "EB Garamond SC", "EB Garamond", Garamond, serif;
   --fs: 1.2rem;
   --lh: 1.6;
-  --page: 54rem;
-  --measure: 42rem;
+  --page: 68rem;
+  --measure: 60rem;
+  --writing-page: 76rem;
   --photo-w: 15rem;
 }
+.k-writing .wrap { max-width: var(--writing-page); }
+.writing { max-width: none; }
+.post, .cv { margin-inline: auto; }
 .masthead { padding-bottom: .7rem; border-bottom: 1px solid var(--accent); }
 .brand { font-family: var(--font-sc); font-weight: 500; font-size: 1.3rem; letter-spacing: .04em; color: var(--accent); }
 .nav { font-size: 1.05rem; }

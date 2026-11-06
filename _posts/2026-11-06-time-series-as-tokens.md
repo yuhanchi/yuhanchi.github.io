@@ -219,64 +219,113 @@ class Chronos2EncoderBlock(nn.Module):
 
 Let's compare `TimeSelfAttention` and `GroupSelfAttention` side by side in [`layers.py`](https://github.com/amazon-science/chronos-forecasting/blob/main/src/chronos/chronos2/layers.py):
 
+<div class="attention-comparison" markdown="1">
+
 ```python
 class TimeSelfAttention(nn.Module):
-    """Self-attention applied along the temporal (patch) axis for each individual series."""
+    """Attention across time patches."""
 
     def __init__(self, config: Chronos2CoreConfig):
         super().__init__()
-        # Uses RoPE because patches along the time axis have a strict sequential order
-        self.self_attention = MHA(config, use_rope=True)
-        self.layer_norm = Chronos2LayerNorm(config.d_model, eps=config.layer_norm_epsilon)
-        self.dropout = nn.Dropout(config.dropout_rate)
+        # Time patches have a sequential order.
+        self.self_attention = MHA(
+            config, use_rope=True
+        )
+        self.layer_norm = Chronos2LayerNorm(
+            config.d_model,
+            eps=config.layer_norm_epsilon,
+        )
+        self.dropout = nn.Dropout(
+            config.dropout_rate
+        )
 
     def forward(
         self,
-        hidden_states: torch.Tensor,   # shape: (batch, time, d_model)
-        attention_mask: torch.Tensor,  # shape: (batch, 1, 1, time)
-        position_ids: torch.Tensor,    # shape: (1, time)
+        # shape: (batch, time, d_model)
+        hidden_states: torch.Tensor,
+        # shape: (batch, 1, 1, time)
+        attention_mask: torch.Tensor,
+        position_ids: torch.Tensor,  # (1, time)
         output_attentions: bool = False,
     ) -> AttentionOutput:
-        # Pre-LayerNorm (T5-style RMSNorm) + MHA along dim=-2 (`time`) + Residual connection
-        normed_hidden_states = self.layer_norm(hidden_states)
-        attention_output: AttentionOutput = self.self_attention(
-            normed_hidden_states, position_ids=position_ids, mask=attention_mask, output_attentions=output_attentions
+        # RMSNorm, time attention, and residual.
+        normed_hidden_states = self.layer_norm(
+            hidden_states
         )
-        hidden_states = hidden_states + self.dropout(attention_output[0])
-
-        return AttentionOutput(hidden_states=hidden_states, attn_weights=attention_output.attn_weights)
-
-class GroupSelfAttention(nn.Module):
-    """Self-attention applied along the batch axis masked by the group attention mask."""
-
-    def __init__(self, config: Chronos2CoreConfig):
-        super().__init__()
-        # Disable RoPE: variables/series within a group have no natural ordering (permutation-equivariant)
-        self.self_attention = MHA(config, use_rope=False)
-        self.layer_norm = Chronos2LayerNorm(config.d_model, eps=config.layer_norm_epsilon)
-        self.dropout = nn.Dropout(config.dropout_rate)
-
-    def forward(
-        self,
-        hidden_states: torch.Tensor,   # Incoming shape: (batch, time, d_model)
-        attention_mask: torch.Tensor,  # group_time_mask of shape: (time, 1, batch, batch)
-        output_attentions: bool = False,
-    ) -> AttentionOutput:
-        # 1. Transpose `batch` and `time` axes so `batch` becomes the sequence axis (dim=-2)
-        #    Shape: (batch, time, d_model) -> (time, batch, d_model)
-        hidden_states = rearrange(hidden_states, "batch time d -> time batch d")
-        normed_hidden_states = self.layer_norm(hidden_states)
-        # 2. Run standard MHA: at each patch index `t`, all `batch` series attend to each other
-        #    (restricted by `attention_mask` so only series with the same group_id interact)
-        attention_output: AttentionOutput = self.self_attention(
-            normed_hidden_states, mask=attention_mask, output_attentions=output_attentions
+        attn_output = self.self_attention(
+            normed_hidden_states,
+            position_ids=position_ids,
+            mask=attention_mask,
+            output_attentions=output_attentions,
         )
-        hidden_states = hidden_states + self.dropout(attention_output[0])
-        # 3. Transpose axes back to original layout: (time, batch, d_model) -> (batch, time, d_model)
-        hidden_states = rearrange(hidden_states, "time batch d -> batch time d")
+        hidden_states = (
+            hidden_states
+            + self.dropout(attn_output[0])
+        )
 
-        return AttentionOutput(hidden_states=hidden_states, attn_weights=attention_output.attn_weights)
+        return AttentionOutput(
+            hidden_states=hidden_states,
+            attn_weights=attn_output.attn_weights,
+        )
 ```
+
+```python
+class GroupSelfAttention(nn.Module):
+    """Attention across series within each group."""
+
+    def __init__(self, config: Chronos2CoreConfig):
+        super().__init__()
+        # Series have no natural order within a group.
+        self.self_attention = MHA(
+            config, use_rope=False
+        )
+        self.layer_norm = Chronos2LayerNorm(
+            config.d_model,
+            eps=config.layer_norm_epsilon,
+        )
+        self.dropout = nn.Dropout(
+            config.dropout_rate
+        )
+
+    def forward(
+        self,
+        # shape: (batch, time, d_model)
+        hidden_states: torch.Tensor,
+        # group_time_mask: (time, 1, batch, batch)
+        attention_mask: torch.Tensor,
+        output_attentions: bool = False,
+    ) -> AttentionOutput:
+        # 1. Make batch the attention axis.
+        hidden_states = rearrange(
+            hidden_states,
+            "batch time d -> time batch d",
+        )
+        normed_hidden_states = self.layer_norm(
+            hidden_states
+        )
+        # 2. Attend within each group at each patch.
+        attn_output = self.self_attention(
+            normed_hidden_states,
+            mask=attention_mask,
+            output_attentions=output_attentions,
+        )
+        hidden_states = (
+            hidden_states
+            + self.dropout(attn_output[0])
+        )
+        # 3. Restore the original axis order.
+        hidden_states = rearrange(
+            hidden_states,
+            "time batch d -> batch time d",
+        )
+
+        return AttentionOutput(
+            hidden_states=hidden_states,
+            attn_weights=attn_output.attn_weights,
+        )
+```
+
+</div>
 
 Look at what `GroupSelfAttention` actually does—it is remarkably clean:
 
