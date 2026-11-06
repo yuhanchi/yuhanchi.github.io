@@ -18,20 +18,6 @@ The paper is titled *Chronos-2: From Univariate to Universal Forecasting*, and t
 
 Chronos-2 moves from univariate to **universal** zero-shot forecasting: a single encoder-only foundation model that handles univariate, multivariate, and covariate-informed tasks (both past-only and known future covariates, numeric or categorical) via **in-context learning (ICL)** across groups of series, with $$\mathcal{O}(V)$$ memory scaling in the number of variates $$V$$.
 
-<details markdown="1">
-<summary><strong>Table 1.</strong> Capabilities of pretrained forecasting models (summarized from Table 1 of the paper).</summary>
-
-| Model | Univariate | Multivariate | Past-Only Covariates | Known Covariates | Categorical Covariates | Cross Learning | Memory Scaling |
-|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| **Chronos-2** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | $$\mathcal{O}(V)$$ |
-| [Toto-1.0](https://arxiv.org/abs/2505.14766) | ✓ | ✓ | ✓ | ✗ | ✗ | ✗ | $$\mathcal{O}(V)$$ |
-| [TabPFN-TS](https://arxiv.org/abs/2501.02945) | ✓ | ✗ | ✗ | ✓ | ✓ | ✗ | $$\mathcal{O}(V)$$ |
-| [COSMIC](https://arxiv.org/abs/2506.03128) | ✓ | ✗ | ✓ | ✓ | ✗ | ✗ | $$\mathcal{O}(V^2)$$ |
-| [Moirai-1.0](https://arxiv.org/abs/2402.02592) | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ | $$\mathcal{O}(V^2)$$ |
-| Chronos-Bolt / Moirai-2.0 / Sundial / TimesFM-2.5 / TiRex | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ | — |
-
-</details>
-
 ---
 
 ## 1. Definitions
@@ -61,17 +47,22 @@ Since large language models have achieved great success, we naturally want to mi
 
 2. **Imbalanced value ranges** (handled via **standardization + $$\sinh^{-1}$$ variance-stabilizing transformation**, following econometrics in [Burbidge et al., 1988](https://doi.org/10.1080/01621459.1988.10478575) and electricity price forecasting in [Uniejewski & Weron, 2018](https://doi.org/10.3390/en11082039)):
    - Different series sit at arbitrary scales and often contain extreme spikes or outliers. For each dimension $$d \in \{1, \dots, D+M\}$$, Chronos-2 first computes the historical mean $$\mu_d$$ and standard deviation $$\sigma_d$$ (excluding missing values), standardizes both history $$\mathbf{V}$$ and future $$\mathbf{W}$$, and then applies the inverse hyperbolic sine $$\sinh^{-1}(z) = \ln\!\big(z + \sqrt{z^2 + 1}\big)$$:
+
      $$
-     \tilde{v}_{t,d} = \sinh^{-1}\!\left(\frac{v_{t,d} - \mu_d}{\sigma_d}\right) \quad (t \le T), \qquad
-     \tilde{w}_{t,d} = \sinh^{-1}\!\left(\frac{w_{t,d} - \mu_d}{\sigma_d}\right) \quad (t > T).
+     \begin{aligned}
+     \tilde{v}_{t,d} &= \sinh^{-1}\!\left(\frac{v_{t,d} - \mu_d}{\sigma_d}\right) && (t \le T), \\
+     \tilde{w}_{t,d} &= \sinh^{-1}\!\left(\frac{w_{t,d} - \mu_d}{\sigma_d}\right) && (t > T).
+     \end{aligned}
      $$
-   - Because $$\sinh^{-1}(z) \approx z$$ near zero and $$\sinh^{-1}(z) \approx \operatorname{sgn}(z)\ln(2|z|)$$ for large $$|z|$$, this log-like transformation compresses extreme values while handling zeros and negative numbers. Concatenating and transposing the normalized history and future gives $$\mathbf{U} = [\tilde{\mathbf{V}}, \tilde{\mathbf{W}}]^\top \in \mathbb{R}^{(T+H) \times (D+M)}$$.
+
+   - Because $$\sinh^{-1}(z) \approx z$$ near zero and $$\sinh^{-1}(z) \approx \operatorname{sgn}(z)\ln(2\lvert z\rvert)$$ for large $$\lvert z\rvert$$, this log-like transformation compresses extreme values while handling zeros and negative numbers. Concatenating and transposing the normalized history and future gives $$\mathbf{U} = [\tilde{\mathbf{V}}, \tilde{\mathbf{W}}]^\top \in \mathbb{R}^{(T+H) \times (D+M)}$$.
 
 ### 2.2 Time Embeddings (Like Positional Embeddings)
 
 How does the model know where each step sits in time? Chronos-2 uses two positional signals:
 
 1. **Explicit relative time-index meta feature $$\mathbf{j}$$**: For each univariate column $$\mathbf{u}_d \in \mathbb{R}^{T+H}$$, it constructs a normalized relative time index scaled by the maximum context length $$C$$:
+
    $$
    \mathbf{j} = \left[-\frac{T}{C},\; -\frac{T-1}{C},\; \dots,\; -\frac{1}{C},\; 0,\; \frac{1}{C},\; \dots,\; \frac{H-1}{C}\right].
    $$
@@ -94,9 +85,11 @@ Instead of quantizing each scalar time step into a discrete vocabulary bin (as t
 
 - The historical section (length $$T$$) and future section (length $$H$$) of $$\mathbf{u}_d$$, $$\mathbf{j}$$, and $$\mathbf{m}_d$$ are patched separately. If $$T$$ or $$H$$ is not a multiple of $$P$$, zero padding is applied on the **left** for history and on the **right** for the future.
 - Let $$\bar{\mathbf{u}}_p, \bar{\mathbf{j}}_p, \bar{\mathbf{m}}_p \in \mathbb{R}^P$$ denote the $$p$$-th patch of the normalized series, time index, and mask. They are concatenated into a vector in $$\mathbb{R}^{3P}$$ and mapped into the transformer's hidden space $$\mathbb{R}^{D_{\text{model}}}$$ using an input residual network $$f^{\mathrm{in}}_\phi: \mathbb{R}^{3P} \to \mathbb{R}^{D_{\text{model}}}$$:
+
   $$
   \mathbf{h}_p = f^{\mathrm{in}}_\phi\big([\bar{\mathbf{u}}_p,\, \bar{\mathbf{j}}_p,\, \bar{\mathbf{m}}_p]\big).
   $$
+
 - Between the historical context patches and the future patches, Chronos-2 inserts a learned special **`[REG]` token** (short for *register* token) that acts both as a context–future separator and as an **attention sink** ([Xiao et al., 2024](https://arxiv.org/abs/2309.17453)) to absorb excess attention mass.
 
 ---
@@ -111,17 +104,19 @@ Instead of quantizing each scalar time step into a discrete vocabulary bin (as t
 As shown in Figure 1, the full pipeline flows from left to right:
 
 $$
+\begin{gathered}
 \text{Raw Input } (\mathbf{V}, \mathbf{W})
 \;\xrightarrow{\text{Std} + \sinh^{-1}}\;
 \mathbf{U}
 \;\xrightarrow{+\,(\mathbf{j},\, \mathbf{m})}\;
-\text{Patching \& } f^{\mathrm{in}}_\phi
-\;\xrightarrow{+\,\texttt{[REG]}}\;
+\text{Patching + } f^{\mathrm{in}}_\phi
+\;\xrightarrow{+\,\texttt{[REG]}}\; \\
 \bigl(\text{Time Attn} \to \text{Group Attn} \to \text{FFN}\bigr)_{\times N}
 \;\xrightarrow{\text{Quantile Head}}\;
 \hat{\mathbf{Z}}
 \;\xrightarrow{\sinh}\;
 \hat{\mathbf{Y}}.
+\end{gathered}
 $$
 
 Let's look at the core attention and encoder code in [`src/chronos/chronos2/layers.py`](https://github.com/amazon-science/chronos-forecasting/blob/main/src/chronos/chronos2/layers.py) and [`src/chronos/chronos2/model.py`](https://github.com/amazon-science/chronos-forecasting/blob/main/src/chronos/chronos2/model.py).
@@ -333,11 +328,14 @@ $$
 Compared to the standard 9-quantile decile grid $$\{0.1, \dots, 0.9\}$$, this grid includes more extreme tails ($$0.01, 0.05, 0.95, 0.99$$) for risk-sensitive forecasts.
 
 - **Training objective**: Pinball / quantile regression loss averaged over valid target entries (known covariates and missing targets are masked out by `loss_mask = future_target_mask * inv_future_covariate_mask`):
+
   $$
   \mathcal{L}(\hat{z}, z) = \sum_{q \in \mathcal{Q}} \Big(q \cdot \max(z - \hat{z}^q, 0) + (1 - q) \cdot \max(\hat{z}^q - z, 0)\Big).
   $$
+
 - **Two-stage curriculum**: Stage 1 pretrains with max context length $$C = 2048$$ and a small number of output patches; Stage 2 extends context length to $$C = 8192$$ and increases the number of output patches so the model can handle high-frequency long seasonalities and long horizons in a single forward pass.
 - **Unscaling at inference**: Finally, `self.instance_norm.inverse` inverts the $$\sinh^{-1}$$ normalization on each predicted quantile $$\hat{z}^q_{t,d}$$:
+
   $$
   \hat{y}^q_{t,d} = \mu_d + \sigma_d \cdot \sinh\!\big(\hat{z}^q_{t,d}\big).
   $$
