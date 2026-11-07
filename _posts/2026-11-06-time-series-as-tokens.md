@@ -329,9 +329,8 @@ class GroupSelfAttention(nn.Module):
 
 Look at what `GroupSelfAttention` actually does—it is remarkably clean:
 
-1. **Axis transposition (`batch time d -> time batch d`)**: Instead of concatenating multiple variates and covariates along the sequence dimension (which would blow up context length and scale quadratically across all patches and variates), Chronos-2 stacks all series, variates, and covariates along the **batch axis** (`batch`). Flipping `batch` and `time` makes the batch axis the sequence dimension (`dim=-2`) at each fixed patch index `time`, inspired by axial/cross-dimension attention in [Crossformer (Zhang & Yan, 2023)](https://openreview.net/forum?id=vSVLM2j9eie), [MSA Transformer (Rao et al., 2021)](https://proceedings.mlr.press/v139/rao21a.html), and [ViViT (Arnab et al., 2021)](https://arxiv.org/abs/2103.15691).
-2. **No positional embedding (`use_rope=False`)**: Unlike patches along the time axis, series/variates/covariates inside a group have no natural ordering, so `GroupSelfAttention` disables RoPE and is permutation-equivariant along the group axis.
-3. **Group-time masking (`_construct_and_invert_group_time_mask`)**: In a batch of size $$B$$, each row is assigned an integer group ID $$g_b$$ in a vector $$\mathbf{g} \in \mathbb{Z}^B$$. How does the encoder ensure information is only shared *within* the same group and only across *valid* (non-padded) patches? In `Chronos2Encoder`:
+1. **No positional embedding (`use_rope=False`)**: Unlike patches along the time axis, series/variates/covariates inside a group have no natural ordering, so `GroupSelfAttention` disables RoPE and is permutation-equivariant along the group axis.
+2. **Group-time masking (`_construct_and_invert_group_time_mask`)**: In a batch of size $$B$$, each row is assigned an integer group ID $$g_b$$ in a vector $$\mathbf{g} \in \mathbb{Z}^B$$. How does the encoder ensure information is only shared *within* the same group and only across *valid* (non-padded) patches? In `Chronos2Encoder`:
 
    ```python
    @staticmethod
@@ -355,18 +354,7 @@ Look at what `GroupSelfAttention` actually does—it is remarkably clean:
        return group_time_mask
    ```
 
-### 3.3 One Unified Mechanism for Four Forecasting Setups
-
-Because `GroupSelfAttention` is controlled purely by `group_ids` $$\mathbf{g}$$ and the future input matrix $$\mathbf{W}$$ (where `*` / `NaN` denotes masked future values), Chronos-2 solves four different forecasting setups without changing a single weight or layer:
-
-| Task Type | Group IDs $$\mathbf{g}$$ | Future Inputs $$\mathbf{W}$$ | What `GroupSelfAttention` Does |
-|---|---|---|---|
-| **Univariate Forecasting** *(e.g., 3 independent series)* | $$\mathbf{g} = (1, 2, 3)$$ | All `*` (masked) | `group_mask` is the identity matrix; each series is predicted independently. |
-| **Univariate Cross-Learning / Few-Shot ICL** *(3 related series in a batch)* | $$\mathbf{g} = (1, 1, 1)$$ | All `*` (masked) | Shares information across related univariate series in the batch (especially helpful for short histories / cold start). |
-| **Multivariate Forecasting** *(3 co-evolving targets)* | $$\mathbf{g} = (1, 1, 1)$$ | All `*` (masked) | Jointly models cross-variate dynamics across the 3 target dimensions. |
-| **Covariate-Informed Forecasting** *(1 target, 1 past-only cov., 2 known covs.)* | $$\mathbf{g} = (1, 1, 1, 1)$$ | Rows 1–2: `*`<br>Rows 3–4: $$x_{T+1:T+H}$$ | At future patch indices, masked target patches attend to the unmasked embeddings of known future covariates. |
-
-### 3.4 Multi-Patch Quantile Head, Loss, and Unscaling
+### 3.3 Multi-Patch Quantile Head, Loss, and Unscaling
 
 After passing through $$N$$ encoder blocks, Chronos-2 slices out the last `num_output_patches` hidden states (corresponding to the future patches) and maps them through a `ResidualBlock` (`self.output_patch_embedding`) to predict **21 quantiles** simultaneously across all future steps:
 
@@ -388,29 +376,6 @@ Compared to the standard 9-quantile decile grid $$\{0.1, \dots, 0.9\}$$, this gr
   $$
   \hat{y}^q_{t,d} = \mu_d + \sigma_d \cdot \sinh\!\big(\hat{z}^q_{t,d}\big).
   $$
-
-```python
-# 1. Slice out the last `num_output_patches` hidden states corresponding to the future horizon
-#    Shape: (batch_size, N_out_patches, d_model)
-forecast_embeds = hidden_states[:, -num_output_patches:]
-
-# 2. Project each future patch embedding through the output ResidualBlock:
-#    R^(d_model) -> R^(num_quantiles * P), then reshape to (batch_size, 21, N_out_patches * P)
-quantile_preds: torch.Tensor = self.output_patch_embedding(forecast_embeds)
-quantile_preds = rearrange(
-    quantile_preds,
-    "b n (q p) -> b q (n p)",
-    n=num_output_patches,
-    q=self.num_quantiles,
-    p=self.chronos_config.output_patch_size,
-)
-
-# 3. Unscale predictions back to the original data domain:
-#    y_hat = mu_d + sigma_d * sinh(z_hat)
-quantile_preds = rearrange(quantile_preds, "b q h -> b (q h)")
-quantile_preds = self.instance_norm.inverse(quantile_preds, loc_scale)
-quantile_preds = rearrange(quantile_preds, "b (q h) -> b q h", q=self.num_quantiles)
-```
 
 ---
 
@@ -439,7 +404,7 @@ Chronos-2's solution is striking: **its multivariate and covariate-informed capa
    - Training exclusively on synthetic data also works well, though the gap is larger on fev-bench.
    - Performance is already strong before long-context post-training, which brings further gains, especially on GIFT-Eval.
 
-<figure>
+<figure id="figure-8">
   <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 1rem;">
     <img src="{{ '/assets/img/posts/chronos2-model-size-skill.svg' | relative_url }}" alt="Skill scores comparing the 120M and 28M Chronos-2 models across three benchmarks." loading="lazy">
     <img src="{{ '/assets/img/posts/chronos2-synth-only-skill.svg' | relative_url }}" alt="Skill scores comparing Chronos-2 with a model trained only on synthetic data." loading="lazy">
@@ -448,10 +413,57 @@ Chronos-2's solution is striking: **its multivariate and covariate-informed capa
   <figcaption><strong>Figure 8 from the paper.</strong> Ablations on model size, synthetic-only training, and long-context post-training (from <a href="https://arxiv.org/html/2510.15821v1#S5.F8">Ansari et al., 2025</a>).</figcaption>
 </figure>
 
+---
+
 ## 6. (Possibly) Open Questions
 
-1. Where is the $$\sqrt{d_k}$$ factor in the attention calculation?
-2. Can the tokenizer learn to adapt the patch length?
-3. How long is the context window? Could the long-context problems seen in LLMs also arise here?
-4. Why are two different time embeddings needed? If we already have RoPE, why add another?
-5. As in distributional RL, could we use a flow-matching head to represent the forecast distribution instead of quantiles?
+1. Where is the $$\sqrt{d_k}$$ factor in the attention calculation?<br>
+
+   In the standard attention mechanism, we divide $$\mathbf{Q}\mathbf{K}^\top$$ by $$\sqrt{d_k}$$ before the softmax. Chronos-2 skips this scaling (see `_eager_attention` above, and `scale=1.0` in its SDPA path). Instead, following T5 and Mesh TensorFlow, it initializes the query projection with a smaller standard deviation: $$\texttt{q.weight} \sim \mathcal{N}\big(0, (d_{\text{model}}\, d_{kv})^{-1}\big)$$, compared with $$\mathcal{N}\big(0, d_{\text{model}}^{-1}\big)$$ for the keys and values (see `_init_weights` in [`model.py`](https://github.com/amazon-science/chronos-forecasting/blob/main/src/chronos/chronos2/model.py)). So the $$1/\sqrt{d_{kv}}$$ factor is absorbed into the initialization of $$\mathbf{W}_Q$$. However, this only holds at initialization; after training, the model is free to learn whatever scale it wants.
+
+2. Can the tokenizer learn to adapt the patch length?<br>
+
+3. How long is the context window? Could the long-context problems seen in LLMs also arise here?<br>
+
+4. Why are two different time embeddings needed? If we already have RoPE, why add another?<br>
+
+   $$\mathbf{j}$$ encodes absolute position, measured from the forecast origin, while RoPE encodes only the relative distance between patches. But forecasting is inference over whatever context window is given, and that window keeps sliding, so it is unclear whether an absolute encoding is needed at all. The paper does not ablate either embedding, so this remains an open problem.
+
+5. As in distributional RL (e.g., [Value Flows](https://arxiv.org/abs/2510.07650)), could we use a flow-matching head to represent the forecast distribution instead of quantiles?
+
+6. As the ablations in [Figure 8](#figure-8) above show, a smaller model, a model trained only on synthetic data, and a model without long-context post-training each already perform well. LLMs follow scaling laws in data size, model size, and post-training compute, so why are the gains not remarkable here?<br>
+
+   These ablations are not along the LLM scaling axes. 28M → 120M is only ~4×; LLM gains appear across orders of magnitude. "Post-training" here is continued pretraining with an 8K context and more output patches, not SFT or RL. Its largest gain is on GIFT-Eval, which has high-frequency data with long seasonal periods.
+
+   Besides, there is probably less reducible loss for scaling to capture. LLMs need scale to store a lot of knowledge, while time-series forecasting is more about inference within the context window.
+
+   Lastly, skill score = 1 − geometric-mean error relative to Seasonal Naive, so 51.4 → 50.4 means the relative error goes from 0.486 to 0.496, about 2% more error. And the top five models on GIFT-Eval span only 3.0 points.
+
+---
+
+## References
+
+- Ansari, A. F., et al. (2025). [Chronos-2: From Univariate to Universal Forecasting](https://arxiv.org/abs/2510.15821). [Code](https://github.com/amazon-science/chronos-forecasting).
+- Ansari, A. F., Stella, L., Turkmen, C., et al. (2024). [Chronos: Learning the Language of Time Series](https://arxiv.org/abs/2403.07815). *TMLR*.
+- Dong, P., Zheng, C., Finn, C., Sadigh, D., & Eysenbach, B. (2026). [Value Flows](https://arxiv.org/abs/2510.07650). *ICLR*.
+- Nie, Y., Nguyen, N. H., Sinthong, P., & Kalagnanam, J. (2023). [A Time Series is Worth 64 Words: Long-term Forecasting with Transformers](https://arxiv.org/abs/2211.14730). *ICLR*. (PatchTST)
+- Raffel, C., Shazeer, N., Roberts, A., et al. (2020). [Exploring the Limits of Transfer Learning with a Unified Text-to-Text Transformer](https://jmlr.org/papers/v21/20-074.html). *JMLR*. (T5)
+- Su, J., Ahmed, M., Lu, Y., et al. (2024). [RoFormer: Enhanced Transformer with Rotary Position Embedding](https://arxiv.org/abs/2104.09864). *Neurocomputing*. (RoPE)
+- Xiao, G., Tian, Y., Chen, B., Han, S., & Lewis, M. (2024). [Efficient Streaming Language Models with Attention Sinks](https://arxiv.org/abs/2309.17453). *ICLR*.
+
+<details>
+<summary>Cite this post</summary>
+<p>If you find this post useful in your work, you can cite it as:</p>
+<blockquote>
+<p>Chi, Yuhan. “Time Series as Tokens: Notes on Chronos-2.” November 6, 2026. <a href="https://yuhanchi.github.io/writing/time-series-as-tokens/">https://yuhanchi.github.io/writing/time-series-as-tokens/</a></p>
+</blockquote>
+<p>This post explains the Chronos-2 paper and code. To cite Chronos-2 itself, please cite <a href="https://arxiv.org/abs/2510.15821">Ansari et al., 2025</a>. To cite this post, use the following BibTeX entry:</p>
+{% raw %}<pre><code class="language-bibtex">@misc{chi2026timeseriestokens,
+  author = {Chi, Yuhan},
+  title = {{Time Series as Tokens: Notes on Chronos-2}},
+  year = {2026},
+  month = nov,
+  howpublished = {Blog post},
+  url = {https://yuhanchi.github.io/writing/time-series-as-tokens/}
+}</code></pre>{% endraw %}
+</details>
