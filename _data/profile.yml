@@ -31,6 +31,12 @@ links:
   - name: X
     url: https://x.com/shan_07_07
     label: "@shan_07_07"
+  - name: Xiaohongshu
+    url: https://www.xiaohongshu.com/user/profile/68c74ff7000000001901ffeb
+    label: Xiaohongshu profile
+  - name: WeChat
+    url: /assets/img/wechat-qr.png
+    label: "WeChat ID: Yushanhan07 (click for QR code)"
 
 publications:
   - title: "Calibrating What Behavior Can Identify: Conformal Reward Sets for Inverse Reinforcement Learning"
