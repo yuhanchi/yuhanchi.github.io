@@ -1,5 +1,5 @@
 ---
-title: "只是套了个 Flow？Sundial 读后记"
+title: "只是套了个 Flow？Sundial你！"
 date: "2026-11-17"
 slug: "timeflow-sundial"
 description: "拆解 Sundial 的 TimeFlow 输出头：为什么它的 Flow Matching 设计很平庸，以及为什么靠多次采样拉低 MASE 和 WQL 算不上真正的校准。"
@@ -11,7 +11,7 @@ preview_alt: "Sundial 整体架构（Figure 2）：连续 Patch 分词、因果 
 ---
 之前在小红书发完 [Chronos-2]({% post_url 2026-11-06-time-series-as-tokens %}) 的笔记后，有读者在评论区推荐了 [Sundial](https://arxiv.org/abs/2502.00816)（*Sundial: A Family of Highly Capable Time Series Foundation Models*，ICML 2025），用来回应我[上篇文章最后留下的那个问题]({% post_url 2026-11-06-time-series-as-tokens %}#6-possibly-open-questions)：能不能像分布强化学习那样，用 Flow Matching 头代替分位数头来建模预测分布？
 
-乍一看，Sundial 的卖点很顺耳：一个原生的、直接吃连续值、Decoder-only 的时间序列基础模型，在万亿级时间点（`TimeBench`）上预训练，用基于 Flow Matching 的 **TimeFlow Loss** 替代离散分词和参数化先验分布。
+乍一看，Sundial 的卖点很厉害：一个原生的、直接input连续值、Decoder-only 的时间序列基础模型，在万亿级时间点（`TimeBench`）上预训练，用基于 Flow Matching 的 **TimeFlow Loss** 替代离散分词和参数化先验分布。
 
 <figure>
   <a href="{{ '/assets/img/posts/sundial-fig2.png' | relative_url }}" title="Open full size"><img src="{{ '/assets/img/posts/sundial-fig2.png' | relative_url }}" alt="Sundial 整体架构（Figure 2）：连续 Patch 分词、Pre-LN 因果 Transformer 底座与 TimeFlow Loss 输出头。" width="2057" height="596" loading="lazy"></a>
@@ -86,8 +86,8 @@ $$
 
 最后还有两个明显的问题：
 
-- **不敢和 Quantile Head 对比**：§5.3 里，Sundial 只拿 `TimeFlow` 去和 `MSE`（不能输出区间）以及 `DDPM Diffusion`（50 步采样本来就吃亏）比，却**没有**在同一个底座和 `TimeBench` 数据上，对比一个最直接的 **Multi-Quantile MLP Head（Pinball Loss）** 或参数化混合分布头。
-- **联合生成器，边缘考试题**：按理说，用 Flow Matching 一次生成整条向量 $$\hat{\mathbf{y}} \in \mathbb{R}^F$$，相比分位数头唯一真正的优势在于能学到跨时间步的**联合分布** $$p(\mathbf{y}_{t+1:t+F} \mid \mathbf{x}_{1:t})$$，而不是每个时间步各自独立的边缘分布。但整篇论文测的所有指标——MSE、MAE、MASE、WQL、逐点 CRPS——**全都是边缘指标**，没有任何一个指标去评估整条生成轨迹的联合质量（比如 Energy Score 或时间自相关结构）。
+- **忘记和 Quantile Head 对比**：§5.3 里，Sundial 只拿 `TimeFlow` 去和 `MSE`（不能输出区间）以及 `DDPM Diffusion`（50 步采样本来就吃亏）比，却**没有**在同一个底座和 `TimeBench` 数据上，对比一个最直接的 **Multi-Quantile MLP Head（Pinball Loss）** 或参数化混合分布头。
+- **一个联合生成器，却在考边缘考试题**：按理说，用 Flow Matching 一次生成整条向量 $$\hat{\mathbf{y}} \in \mathbb{R}^F$$，相比分位数头唯一真正的优势在于能学到跨时间步的**联合分布** $$p(\mathbf{y}_{t+1:t+F} \mid \mathbf{x}_{1:t})$$，而不是每个时间步各自独立的边缘分布。但整篇论文测的所有指标——MSE、MAE、MASE、WQL、逐点 CRPS——**全都是边缘指标**，没有任何一个指标去评估整条生成轨迹的联合质量（比如 Energy Score 或时间自相关结构）。这相当于自废武功，实在遗憾。
 
 总结下来，Sundial 在工程上的工作——清洗出 `TimeBench` 并把连续 Patch 自回归 Transformer 训稳训大——是扎实的；但论文主打的 `TimeFlow` 头和“test-time calibration”叙事，包装的成分还是远大于实质。
 
@@ -95,7 +95,7 @@ $$
 
 ## 3. 一个开放问题
 
-到底什么样的建模方式，才算真正用上了生成式模型（它确实可能具备的）表达能力？如果推理到头来还是靠反复采样去凑逐点的中位数和分位数，那其实并没有发挥出生成模型真正擅长的东西。
+到底什么样的建模方式，才算真正用上了生成式模型（它确实可能具备的）表达能力？如果推理到头来还是靠反复采样去凑逐点的中位数和分位数，那其实并没有发挥出生成模型真正擅长的东西。这个问题比较复杂，我要好好想想。
 
 ---
 
