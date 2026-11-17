@@ -20,6 +20,11 @@ permalink: /writing/:slug/
 timezone: Asia/Shanghai
 future: true
 
+collections:
+  zh:
+    output: true
+    permalink: /writing/:name/zh/
+
 defaults:
   - scope:
       path: ""
@@ -27,6 +32,13 @@ defaults:
     values:
       layout: default
       kind: post
+  - scope:
+      path: ""
+      type: zh
+    values:
+      layout: default
+      kind: post
+      lang: zh-CN
 
 exclude:
   - README.md

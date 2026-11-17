@@ -178,9 +178,15 @@ ul.post-list, ul.project-list, ol.pub-list, ul.exp-list, ul.misc-list { list-sty
 /* ---------- post page ---------- */
 .post { max-width: var(--measure); }
 .post-header { margin-bottom: 2rem; }
-.post-kicker { margin: 0 0 1rem; font-size: .9rem; }
+.post-topbar { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; margin: 0 0 1rem; }
+.post-kicker { margin: 0; font-size: .9rem; }
 .post-kicker a { color: var(--muted); text-decoration: none; }
 .post-kicker a:hover { color: var(--accent); }
+.lang-switch { display: inline-flex; align-items: center; gap: .35rem; font-family: var(--font-ui); font-size: .8rem; letter-spacing: .04em; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: .15rem .65rem; }
+.lang-switch a { color: var(--muted); text-decoration: none; }
+.lang-switch a:hover { color: var(--accent); }
+.lang-switch .lang-active { color: var(--text); font-weight: 600; }
+.lang-switch .lang-sep { opacity: .5; }
 .post-header .post-title { font-family: var(--font-head); font-size: 2.2rem; font-weight: 600; line-height: 1.2; margin: 0 0 .6rem; }
 .post-lede { color: var(--muted); font-size: 1.1em; line-height: 1.5; margin: 0 0 .8rem; }
 .post-meta { color: var(--muted); font-size: .88rem; margin: 0; }
