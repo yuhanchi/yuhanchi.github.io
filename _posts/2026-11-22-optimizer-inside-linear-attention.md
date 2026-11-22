@@ -6,11 +6,12 @@ category: "tech"
 tags: ["AI", "linear-attention", "optimization"]
 math: true
 published: true
+preview_image: "/assets/img/posts/optimizer-inside-linear-attention/linear-attention.png"
+preview_alt: "Architecture of a modern Linear Attention (Gated Delta Rule) block with L2-normalized queries/keys and RMSNorm readout."
 ---
 
-Lately I have been reading some work on Linear Attention and pretraining optimizers, which got me wondering: if Linear Attention can be viewed as Test-Time Training, how should its inner optimizer handle scale? Going a step further, does this Linear Attention block share some of the same nice properties—such as scale structure or symmetry?
+Lately I have been reading some work on Linear Attention and pretraining optimizers ([Wen et al.](https://arxiv.org/abs/2606.16899); [Su](https://spaces.ac.cn/archives/11985)), which got me wondering: if Linear Attention can be viewed as Test-Time Training, how should its inner optimizer handle scale? Going a step further, does this Linear Attention block share some of the same nice properties—such as scale structure or symmetry?
 
-My short answer, worked out below: plain DeltaNet runs SGD on an inner loss that is not scale-invariant; once the write is calibrated, the update becomes preconditioned gradient descent on a scale-invariant loss—the inner-loop analogue of the scale-invariant weights studied in effective-learning-rate theory ([Wen et al.](https://arxiv.org/abs/2606.16899); [Su](https://spaces.ac.cn/archives/11985)).
 
 ## 1. Scale in the Update?
 
@@ -502,7 +503,7 @@ Like $$P^*$$ itself, all of this concerns population fixed points under a statio
 
 All of these are statements about population fixed points under stationarity, the same frame in which $$P^*$$ is defined.
 
-### A Simpler Analogy: Mixing a Drink
+### A Simpler Analogy: Mixing a Drink (By Gemini)
 
 Setting matrices and equations aside for a moment, picture **repeatedly adding ingredients to a pitcher of mixed drink**:
 

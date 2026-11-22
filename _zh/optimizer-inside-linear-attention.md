@@ -1,12 +1,14 @@
 ---
-title: "线性注意力内部住着什么优化器？尺度对称性、写入与遗忘"
+title: "线性注意力里是何种优化器？尺度对称性、写入与遗忘"
 date: "2026-11-22"
 slug: "optimizer-inside-linear-attention"
-description: "归一化读出不在乎状态的整体尺度，但下一次写入在乎。从这个差别出发，区分尺度校准与遗忘，理解 DeltaNet、Gated DeltaNet 和齐次更新。"
+description: "归一化的读出不在乎状态的整体尺度，但每次的写入在乎。从这个差别出发，区分尺度校准与遗忘，理解 DeltaNet、Gated DeltaNet 和齐次更新。"
 category: "tech"
 tags: ["AI", "linear-attention", "optimization"]
 math: true
 published: true
+preview_image: "/assets/img/posts/optimizer-inside-linear-attention/linear-attention.png"
+preview_alt: "现代 Linear Attention（Gated Delta Rule）模块结构图：q、k 经 L2 归一化，状态读出经过 RMSNorm 与输出门控。"
 ---
 
 这几天读了些 Linear Attention 和 Pretrain Optimizer 的工作，让我开始想一个问题：既然 Linear Attention 可以看作 Test-Time Training，那它内部的优化器应该怎样处理尺度？更进一步地，我们这个 Linear Attention 是否具有某种同样好的性质，比如尺度或者对称？
