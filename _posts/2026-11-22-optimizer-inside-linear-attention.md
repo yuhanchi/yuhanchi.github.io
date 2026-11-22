@@ -1,549 +1,447 @@
 ---
-title: "What Optimizer Lives Inside Linear Attention? Scale Symmetry and the CHI Loss"
+title: "What Optimizer Lives Inside Linear Attention? Scale Symmetry, Writing, and Forgetting"
 date: "2026-11-22"
-description: "Starting from four assumptions modern linear-attention blocks already make, we rewrite the inner objective as the Calibrated · Homogeneous · Invariant (CHI) loss and view DeltaNet, Gated DeltaNet, and calibrated updates under one lens."
+description: "Normalized readout ignores the overall scale of the state, yet the very next write does not. Starting from that mismatch, we separate scale calibration from forgetting across DeltaNet, Gated DeltaNet, and homogeneous updates."
 category: "tech"
 tags: ["AI", "linear-attention", "optimization"]
 math: true
 published: true
 ---
-Lately I spent a little over a day reading recent work on linear attention and pretraining optimizers, and noticed some clean connections between the two. Working through them led to a few neat conclusions—and a few open questions I want to write down here.
 
-Let us start from four assumptions that almost every modern linear-attention block already makes:
+Lately I have been reading recent work on linear attention and pretraining optimizers—especially Kaiyue Wen's [Hyperball Optimization](https://arxiv.org/abs/2606.16899) and Jianlin Su's [*From Parameter Symmetry to Effective Learning Rates*](https://spaces.ac.cn/archives/11985). That made me wonder: if linear attention can be read as Test-Time Training, how should its inner optimizer handle scale?
 
-1. $$k$$ is normalized;
-2. $$q$$ is normalized;
-3. $$o = S q$$, and $$o$$ goes through a normalization (RMSNorm) before anything else touches it;
-4. We may view Linear Attention as Test-Time Training (TTT)—following [Sun et al. (2024)](https://arxiv.org/abs/2407.04620) and the broader unifying frameworks of [Wang et al. (2025)](https://arxiv.org/abs/2501.12352) (*Test-Time Regression*) and [Behrouz et al. (2025)](https://arxiv.org/abs/2504.13173) (*MIRAS*), which bring linear attention, DeltaNet, gated recurrences, and associative memories under one online-optimization view.
+The starting observation is simple: **if you rescale the whole state matrix, the normalized readout does not change—yet updating both states with the same key-value pair usually gives different outputs.**
 
-After reading the posts by Kaiyue Wen ([Hyperball Optimization](https://arxiv.org/abs/2606.16899)) and Jianlin Su ([*From Parameter Symmetry to Effective Learning Rates*](https://spaces.ac.cn/archives/11985)) on optimizers and effective learning rates, a fun question comes up quite naturally: Linear Attention's Test-Time *Training* has the word *training* in its name, so **what does its optimizer actually look like?** And going one step further: can the special structure of the Linear Attention module itself suggest a better, or at least a more principled, optimization strategy?
+The reason sits right inside the recurrence. The old state scales up with the multiplier, while the newly written term keeps its original magnitude. The scale that the readout threw away sneaks straight back into the next step.
 
-This post does not propose a new architecture. It offers **a perspective**. Starting from nothing more than the four assumptions above, we will find that [DeltaNet](https://arxiv.org/abs/2406.06484), [Gated DeltaNet](https://arxiv.org/abs/2412.06464), and a few calibrated or homogeneous variants all show up as different answers to one small question.
+Below, we follow this single mismatch to see what calibration, forgetting, and state normalization are each doing. Throughout the post, we assume only that keys $$k$$ are unit-normalized, that the readout $$Sq$$ passes through RMSNorm, and that RMSNorm is treated as an exact scale-invariant map.
 
----
+## 1. Readout Ignores Scale—Why Does the Update Care?
 
-## 1. Setup
-
-The memory is a matrix $$S_t \in \mathbb{R}^{d_v \times d_k}$$. At each step we see a pair $$(k_t, v_t)$$, update the memory, and read it with $$q_t$$:
+The state is a matrix $$S_t\in\mathbb R^{d_v\times d_k}$$. At each step, we receive a key-value pair $$(k_t,v_t)$$, update the state, and read it out with a query $$q_t$$:
 
 $$
-S_{t+1} = S_t - \beta_t (S_t k_t - v_t) k_t^\top, \qquad
-o_t = S_{t+1} q_t, \qquad
-y_t = W_o\big[\mathrm{RMSNorm}(o_t) \odot \mathrm{SiLU}(g_t)\big]. \tag{1}
+S_{t+1}=\alpha_t S_t(I-\beta_t k_tk_t^\top)+\gamma_t v_tk_t^\top,
+\qquad
+ y_t=\operatorname{RMSNorm}(S_{t+1}q_t).
+\tag{1}
 $$
 
-The update in Eq. (1) is exactly one SGD step on the per-token regression loss $$\frac{1}{2}\|S k_t - v_t\|_2^2$$. That is the TTT reading (and the core of the unified test-time regression / online-optimization picture): the "inner model" is the linear map $$S$$, the "training data" is the stream of $$(k_t, v_t)$$, and the inner optimizer is SGD with step size $$\beta_t$$.
-
-Notation used below: the key second moment $$\Sigma = \mathbb{E}[k k^\top] \succ 0$$, the cross-covariance $$C = \mathbb{E}[v k^\top]$$, the ordinary least-squares solution $$P^* = C\Sigma^{-1}$$, the old prediction $$p_t = S_t k_t$$, and the Frobenius normalization operator $$N_F(X) = X / \|X\|_F$$.
-
----
-
-## 2. The Relationship Between $$q$$ and $$k$$
-
-One thing I find genuinely curious is how we should think about $$q$$.
-
-The usual story goes: $$S$$ *is* the memory. $$S k \approx v$$ means it has memorized something, and $$q$$ is a test vector that reads the memory back out. Think about that for a second and it feels slightly uncanny: in ordinary softmax attention we tend to feel that $$q$$ and $$k$$ do not really "live in the same linear space," yet here we write with $$k$$ and read with $$q$$ through the *same* linear map, and it works.
-
-Think one step further and you notice that the write side and the read side do not even share the same goal.
-
-For a write pair $$(k, v)$$, we want $$S k$$ to match $$v$$ as closely as possible:
+For now, treat $$\alpha_t,\beta_t,\gamma_t$$ as three independent scalars—without tying them together or letting them depend on the state's overall scale. Here $$0<\alpha_t\le1$$ controls how much of the old state is retained, $$\beta_t$$ controls erasure strength, and $$\gamma_t$$ controls write strength. Expanding Eq. (1):
 
 $$
-\min_S \;\; \mathbb{E}\,\|S k - v\|_2^2. \tag{2}
+S_{t+1}
+=
+\underbrace{\alpha_t S_t}_{\text{global decay of old state}}
+-
+\underbrace{\alpha_t\beta_t(S_tk_t)k_t^\top}_{\text{erasure along current key}}
++
+\underbrace{\gamma_t v_tk_t^\top}_{\text{new write}}.
+\tag{2}
 $$
 
-For a read pair $$(q, o)$$ (where $$o$$ stands for both *oracle* and *output*, lol), what we really want is for the output to *point the right way*, because the very next thing that happens to $$o_t$$ is RMSNorm, which throws away its length:
+Here "state" means the matrix $$S$$, "update" means the full recurrence, and "write" refers only to the final additive term. The erasure term subtracts part of the old state's response along the current key; the forget gate $$\alpha_t$$ scales the entire old state uniformly.
+
+Why call the last term a write? Because $$\|k_t\|_2=1$$, adding $$\gamma_t v_tk_t^\top$$ shifts the prediction $$S_tk_t$$ on the current key by $$\gamma_t v_t$$. For any other query $$q$$, the readout shifts by $$\gamma_t v_t(k_t^\top q)$$: the closer $$q$$ is to $$k_t$$, the larger the change.
+
+Now replace $$S$$ with $$\lambda S$$ for some $$\lambda>0$$. The readout satisfies
 
 $$
-\max_S \;\; \mathrm{sim}(S q,\; o^\star). \tag{3}
+\operatorname{RMSNorm}(\lambda Sq)
+=
+\operatorname{RMSNorm}(Sq).
+\tag{3}
 $$
 
-This "max similarity" in Eq. (3) can be written in several equivalent ways:
-
-- cosine similarity: $$\max\; \cos\angle(S q,\; o^\star)$$;
-- normalized distance: $$\min\; \|\mathrm{RMSNorm}(S q) - \mathrm{RMSNorm}(o^\star)\|_2^2$$;
-- or anything that only depends on the positive ray $$\{a\, S q : a > 0\}$$.
-
-Suppose we achieve Eq. (2), and we also accept that $$(q, o)$$ is in some sense just another $$(k, v)$$ (i.e., the oracle satisfies $$o^\star = P^* q$$). Then solving Eq. (2) well implies Eq. (3).
-
-What about the converse? Eq. (2) is clearly too strong: Eq. (3) does not care about any positive rescaling of the output. Each query could, in principle, accept its own scale. But that does not mean we cannot work backwards from Eq. (3).
-
-> **Side remark (assumption 2 is free).** Since $$o_t = S_{t+1} q_t$$ is linear in $$q_t$$ and ideal RMSNorm ($$\varepsilon \to 0$$) satisfies $$\mathrm{RMSNorm}(a\, o) = \mathrm{RMSNorm}(o)$$ for all $$a > 0$$, normalizing $$q$$ only multiplies $$o$$ by a positive scalar, which RMSNorm then eats. Under an ideal output norm, normalizing $$q$$ is redundant in both the forward and backward passes. Normalizing $$k$$ is a very different story, as we will see shortly.
-
----
-
-## 3. A Lemma: You Only Get One Global Scale
-
-Can each memory pick its own scale? Here is a two-second counterexample. Take two orthogonal keys $$k_1 \perp k_2$$ and store them with different multipliers:
+In the update, however, the first two terms scale by $$\lambda$$ while the last term does not. Letting $$\mathcal T$$ denote the update operator in Eq. (1), we have
 
 $$
-S k_1 = 2 v_1, \qquad S k_2 = 1 \cdot v_2. \tag{4}
+\mathcal T(\lambda S)-\lambda\mathcal T(S)
+=(1-\lambda)\gamma vk^\top.
+\tag{4}
 $$
 
-Each individual query reads back the right direction. Now ask the mixed query $$q = \frac{1}{\sqrt{2}}(k_1 + k_2)$$. The ideal output points along $$v_1 + v_2$$, yet Eq. (4) gives $$2 v_1 + v_2$$. **The direction is wrong.** Per-memory scaling leaks into directions as soon as queries mix.
+So two states with identical readouts generally no longer produce identical readouts after the very same update.
 
-This is no accident:
+In $$S$$, the old-state terms are degree-1 homogeneous, while the new write is degree-0 homogeneous. **The larger the old state, the harder it is for the same write to move it; the smaller the old state, the easier it is to move.** Even though the state's norm never appears in the current output, it quietly controls how easily the next step can rotate the state's direction.
 
-> **Lemma (Projective uniqueness).** Let $$\operatorname{rank}(M) \ge 2$$. If for every $$q \notin \ker M$$ the vector $$S q$$ is a positive multiple of $$M q$$, then $$S = c M$$ for a unique global constant $$c > 0$$.
+## 2. You Only Get One Global Scale
+
+Following [TTT](https://arxiv.org/abs/2407.04620) and [Test-Time Regression](https://arxiv.org/abs/2501.12352), plain DeltaNet is one step of SGD on the per-step regression loss $$\frac12\|Sk-v\|_2^2$$. Look a little closer, though, and the writing side and the reading side do not share the same objective.
+
+For a write pair $$(k,v)$$, we want $$Sk$$ as close to $$v$$ as possible:
+
+$$
+\min_S \;\; \mathbb{E}\,\|Sk-v\|_2^2. \tag{Goal 1}
+$$
+
+Let
+
+$$
+\Sigma=\mathbb E[kk^\top]\succ0,\qquad
+C=\mathbb E[vk^\top],\qquad
+P^*=C\Sigma^{-1}.
+$$
+
+For a read pair $$(q,o^\star)$$ (where $$o$$ stands for both *oracle* and *output*), $$Sq$$ immediately passes through RMSNorm, which discards its length. What we actually care about is whether the output **points in the right direction**:
+
+$$
+\max_S \;\; \mathrm{sim}(Sq,\; o^\star). \tag{Goal 2}
+$$
+
+This "maximize similarity" can be written as cosine similarity $$\max\cos\angle(Sq,o^\star)$$, normalized distance $$\min\|\operatorname{RMSNorm}(Sq)-\operatorname{RMSNorm}(o^\star)\|_2^2$$, or any objective depending only on the positive ray $$\{a\,Sq : a>0\}$$.
+
+Suppose we achieve Goal 1 and accept that $$(q,o^\star)$$ is in some sense another $$(k,v)$$ pair (i.e., ideal readout satisfies $$o^\star=P^*q$$); then solving Goal 1 automatically achieves Goal 2. What about the converse? Goal 1 looks too strong: Goal 2 ignores any positive rescaling of the output, so intuitively it might seem that each stored pair could carry its own scale factor.
+
+Can it? Take two orthogonal keys with linearly independent values $$v_1,v_2$$, and suppose the state satisfies
+
+$$
+Sk_1=2v_1,\qquad Sk_2=v_2.
+\tag{5}
+$$
+
+Querying $$k_1$$ or $$k_2$$ individually gives the right direction. Now ask the mixed query $$q=(k_1+k_2)/\sqrt2$$: the output points along $$2v_1+v_2$$ instead of $$v_1+v_2$$. Normalizing at the end cannot fix the wrong ratio between the two terms.
+
+This reflects a simple linear-algebra fact:
+
+> **Lemma.** Suppose $$\operatorname{rank}(M)\ge2$$. If for every $$q\notin\ker M$$ the vector $$Sq$$ is a positive multiple of $$Mq$$, then there exists a single global scalar $$c>0$$ such that $$S=cM$$.
 
 <details markdown="1">
-<summary>Proof of the projective uniqueness lemma</summary>
+<summary>Proof</summary>
 
-Write $$S q = c(q)\, M q$$. Whenever $$M q_1, M q_2$$ are linearly independent, linearity gives
+Write $$Sq=c(q)Mq$$. Whenever $$Mq_1,Mq_2$$ are linearly independent, linearity gives
 
 $$
-c(q_1 + q_2)(M q_1 + M q_2) = S(q_1 + q_2) = c(q_1) M q_1 + c(q_2) M q_2,
+S(q_1+q_2)=c(q_1)Mq_1+c(q_2)Mq_2
+=c(q_1+q_2)(Mq_1+Mq_2),
 $$
 
-so comparing coefficients forces $$c(q_1) = c(q_2) = c(q_1 + q_2)$$. If $$M q_1, M q_2$$ are collinear, since $$\operatorname{rank}(M) \ge 2$$ we can bridge them through a third vector $$q_3$$ whose image $$M q_3$$ is independent of both, giving $$c(q_1) = c(q_3) = c(q_2)$$. Thus $$c$$ is constant on $$\mathbb{R}^{d_k} \setminus \ker M$$. Finally, for any $$q_0 \in \ker M$$, applying the same relation to $$q_1 + q_0$$ gives $$S(q_1 + q_0) = c M(q_1 + q_0) = c M q_1 = S q_1$$, so $$S q_0 = 0$$. Hence $$S = c M$$. $$\blacksquare$$
+so comparing coefficients forces all three scalars to be equal. If two nonzero images are collinear, pick a third linearly independent image to bridge them; hence every nonzero image shares the same $$c$$. Finally, for $$q_0\in\ker M$$, comparing $$q_1+q_0$$ with $$q_1$$ gives $$Sq_0=0$$, so $$S=cM$$.
 
 </details>
 
-Once we require Eq. (3) for *all* queries, per-query freedom collapses to **one global positive scale**. That gives what I call the **Calibrated · Homogeneous · Invariant loss**—**CHI loss** for short:
+This is the same fact as "a linear operator for which every vector is an eigenvector must be a scalar multiple of the identity." Here it says: **once queries mix different keys, the only thing you are free to change is a single global scale for the entire state, never the relative proportions across stored pairs.**
+
+Consequently, requiring Goal 2 for **all** queries collapses per-query scale freedom into a single positive scalar $$c>0$$, giving the scale-calibrated objective **Goal \***:
 
 $$
-\boxed{\ \min_{S,\; c > 0}\; F(S, c) = \frac{1}{2}\,\mathbb{E}\,\|c\, S k - v\|_2^2\ } \tag{5}
+\boxed{\ \min_{S,\; c>0}\; F(S,c)=\frac12\mathbb E\|cSk-v\|_2^2\ }
+\tag{Goal *}
 $$
 
-Each word in the name maps straight onto Eq. (5): $$c$$ explicitly **calibrates** the global scale between $$S k$$ and $$v$$; $$(S, c)$$ forms a **homogeneous** scale family (and once $$c$$ is eliminated via $$c^*(S)$$, the reduced objective is homogeneous of degree 0 in $$S$$); and along rays $$\{a S : a > 0\}$$, the readout goal is scale-**invariant**.
+As a set of solutions, Goal \* invents nothing new: substituting $$P=cS$$ turns it right back into ordinary least squares, and for any fixed $$c>0$$ the minimizer is $$S=P^*/c$$, all lying on the same ray $$\{aP^* : a>0\}$$. What Goal \* adds is **geometry**—it promotes the one global scale that the readout ignores into an explicit variable $$c$$.
 
-Let me be upfront about one thing, because it is the crux of this post. As a *set of solutions*, the CHI loss in Eq. (5) is nothing new: substitute $$P = c S$$ and you get ordinary least squares. What it adds is **geometry**. It turns the single direction the readout does not care about—the global scale—into an explicit variable. And once a symmetry becomes an explicit variable, we get to choose how the optimizer treats it.
+## 3. Scale the Write Along with the State
 
----
+The old-state terms in Eq. (2) already satisfy
 
-## 4. Four Nice Properties of the CHI Loss
+$$
+\lambda S(I-\beta kk^\top)
+=\lambda\big[S(I-\beta kk^\top)\big].
+$$
 
-The objective in Eq. (5) behaves remarkably cleanly:
+Only the new write breaks this symmetry. Multiplying the write by a scalar satisfying $$g(\lambda S)=\lambda g(S)$$ gives
 
-1. **Fix any $$c$$, and it is ordinary regression.** For fixed $$c > 0$$, $$F(\cdot, c)$$ is a strongly convex quadratic in $$S$$ with unique minimizer $$S^*(c) = P^* / c$$.
-2. **It comes as a scale family.** For all $$a > 0$$, $$F(a S,\; c / a) = F(S, c)$$. Regardless of which $$c$$ we pick, optimal solutions differ only by a positive scalar and all lie on the same ray $$\{a P^* : a > 0\}$$.
-3. **We can also optimize $$(S, c)$$ jointly.** Running SGD on $$(S, c)$$ together has no spurious interior stationary points: every interior stationary point satisfies $$c S = P^*$$. Moreover, as long as $$c \ge c_{\min} > 0$$, the gradient in $$S$$ satisfies a Polyak–Łojasiewicz (PL) inequality:
+$$
+\boxed{
+\mathcal T(S)=\alpha S(I-\beta kk^\top)+\gamma g(S)vk^\top,
+\qquad
+\mathcal T(\lambda S)=\lambda\mathcal T(S).
+}
+\tag{6}
+$$
 
-   $$
-   \|\nabla_S F(S, c)\|_F^2 \ge 2 c_{\min}^2 \lambda_{\min}(\Sigma)\bigl(F(S, c) - F^*\bigr). \tag{6}
-   $$
+This is positive 1-homogeneity—the exact scale equivariance we need: scale the state by $$\lambda$$, and the updated state scales by $$\lambda$$ as well. Two initial states differing by a positive scalar remain scalar multiples of each other forever, so their normalized readouts stay identical at every step.
 
-4. **Property 2 implies an Euler identity that governs the rest of the post.** Differentiate $$f(a) = F(a S,\; c / a) \equiv \text{const}$$ at $$a = 1$$:
+State length can now act purely as a representation convention, instead of silently governing the relative strength of future writes.
 
-   $$
-   0 = f'(1) = \langle S,\; \nabla_S F \rangle_F - c\,\partial_c F
-   \quad\Longrightarrow\quad
-   \boxed{\ \langle S,\; \nabla_S F(S, c)\rangle_F = c\,\frac{\partial F}{\partial c} = c\big(c\,\langle S,\; S\Sigma\rangle_F - \langle S,\; C\rangle_F\big)\ } \tag{7}
-   $$
+This also makes the role of scalar gates clear. We only need to ask two questions: **does the scalar multiply only the old state, or both old state and new write? And does the write scale with $$S$$?**
+
+| What does the scalar multiply? | Write does not scale with $$S$$: $$vk^\top$$ | Write scales with $$S$$: $$g(S)vk^\top$$ |
+|---|---|---|
+| **Old state only** | GDN's forget gate. Shrinks old state relative to new write while also changing state norm and future step sizes; a constant gate introduces ridge bias. | Still lowers old-state weight relative to new writes, without depending on overall state length. Even after calibration, relative forgetting remains independently controllable. |
+| **Old state and new write together** | Leaves the current readout unchanged, but alters state length and therefore shifts the relative strength of the next write. Global calibration and plain DeltaNet's sphere projection live here. | Pure change of common scale. Future updates scale along with it, so every normalized readout stays completely unchanged. |
+
+The top row alters the balance between old and new content; the bottom row alters the shared scale of the whole state. In the left column, that shared scale still leaks into the next update; in the right column, that leakage is gone.
+
+Notice the bottom-right cell in particular: once the update is 1-homogeneous, multiplying by a positive scalar at the end of every step—or projecting the state onto a fixed-radius sphere—does not change the readout trajectory at all. Induction proves it in one line: if two trajectories differ by a factor of $$\lambda$$, they still differ by $$\lambda$$ after the next update, and renormalizing only swaps one positive factor for another.
+
+Throughout this post, "forgetting" refers to lowering the weight of the entire old state relative to the new write. Erasure along the current key also overwrites past associations, acting as a targeted local edit along one direction.
 
 <details markdown="1">
-<summary>Proof of the PL inequality (6)</summary>
+<summary>An equivalent view: decaying the old state is boosting future writes</summary>
 
-Set $$E = c S - P^*$$. Since $$C = P^* \Sigma$$, expanding around the least-squares solution $$P^*$$ eliminates the cross term and gives $$F(S, c) - F^* = \frac{1}{2}\operatorname{tr}(E \Sigma E^\top)$$, while $$\nabla_S F(S, c) = c E \Sigma$$. Because $$\Sigma \succ 0 \implies \Sigma^2 \succeq \lambda_{\min}(\Sigma)\Sigma$$, for any $$c \ge c_{\min} > 0$$ we have:
+There is an equivalent way to read Eq. (1). Set $$S_t=\kappa_tQ_t$$ with $$\kappa_{t+1}=\alpha_t\kappa_t$$; then
 
 $$
-\|\nabla_S F(S, c)\|_F^2 = c^2 \operatorname{tr}(E \Sigma^2 E^\top) \ge c^2 \lambda_{\min}(\Sigma)\operatorname{tr}(E \Sigma E^\top) \ge 2 c_{\min}^2 \lambda_{\min}(\Sigma)\bigl(F(S, c) - F^*\bigr). \quad \blacksquare
+Q_{t+1}=Q_t(I-\beta_tk_tk_t^\top)
++\frac{\gamma_t}{\kappa_{t+1}}v_tk_t^\top.
+\tag{7}
 $$
+
+The explicit forget gate vanishes, turning into an ever-growing multiplier on later writes. When $$\alpha_t<1$$, $$\kappa_{t+1}=\prod_{s\le t}\alpha_s$$ keeps shrinking. Under normalized readout, "continuously decaying the old state" and "continuously amplifying newer writes" trace out the exact same trajectory. Because this multiplier accumulates all past forget gates, the single-step norm $$\|v_t\|$$ alone cannot express it.
 
 </details>
 
-Read the left-hand side of Eq. (7) geometrically. Picture $$S$$ as an arrow in matrix space. Its gradient splits orthogonally into a **tangential** component (rotating the arrow, changing directions, which is all RMSNorm sees) and a **radial** component (stretching or shrinking the arrow, which RMSNorm ignores). Eq. (7) says that **the radial component of the $$S$$-gradient is exactly $$c\,\partial_c F$$.**
+The table separates the two operations, but how do they actually affect the readout? Let us look at two examples in the left column: one deliberately decays the old state, the other only tries to fix the state's length, yet both end up tilting the relative proportions across directions.
 
-Setting $$\partial_c F = 0$$ gives the optimal scale for the current state (assuming positive numerator and denominator):
+## 4. How Two Operations Produce Directional Bias
 
-$$
-c^*(S) = \frac{\langle S,\; C\rangle_F}{\langle S,\; S\Sigma\rangle_F} = \frac{\mathbb{E}\,\langle S k,\; v\rangle}{\mathbb{E}\,\|S k\|_2^2}. \tag{8}
-$$
+To compare directions, we use the stationary regression solution $$P^*=C\Sigma^{-1}$$ from Section 2—the minimizer of ordinary fixed-$$c=1$$ regression $$F(S,1)=\frac12\mathbb E\|Sk-v\|_2^2$$—as our reference. All biases discussed below are measured against this reference; real token streams drift over time, so keeping this static solution is not always what the network wants.
 
-When $$c = c^*(S)$$, the expected gradient is **purely tangential**. When $$c$$ takes any other value, part of the gradient pushes along the radial direction that the output norm discards.
+### GDN: Low-frequency directions suffer stronger decay
 
-So everything boils down to one small question:
-
-> **What do we do with $$c$$?**
-
-There are three natural answers: **fix it**, **learn it**, or **eliminate it**. They are the three mainlines below.
-
----
-
-## 5. Mainline 1: Fix $$c \equiv 1$$ and Let the Norm Run Free (DeltaNet / Gated DeltaNet)
-
-The simplest choice is to hard-code $$c \equiv 1$$ and put no constraint on $$\|S_t\|_F$$. That is plain DeltaNet in Eq. (1).
-
-Here the radial force in Eq. (7) is not wasted—it does the calibration. If $$S$$ is too short it gets stretched, if too long it gets shrunk, and the state settles at the unique point on the ray where $$c^*(S) = 1$$ in Eq. (8), namely $$S = P^*$$ (quick check: $$c^*(P^*) = \operatorname{tr}(P^*\Sigma P^{*\top}) / \operatorname{tr}(P^*\Sigma P^{*\top}) = 1$$).
-
-### Why $$k$$ must be normalized
-
-For one SGD step on $$\frac{1}{2}\|S k_t - v_t\|_2^2$$ with step size $$\eta_t$$, the new residual satisfies:
+Gated DeltaNet corresponds to $$\gamma=\beta$$ in Eq. (1):
 
 $$
-S_{t+1} k_t - v_t = \big(1 - \eta_t \|k_t\|_2^2\big)(S_t k_t - v_t). \tag{9}
+S_{t+1}=\alpha S_t(I-\beta k_tk_t^\top)+\beta v_tk_t^\top.
 $$
 
-Along this rank-one direction, the exact curvature is $$\|k_t\|_2^2$$. Whenever $$\eta_t \|k_t\|_2^2 \ge 2$$, the step stops shrinking—oscillating or diverging. Normalizing $$k_t$$ (equivalently, dividing by the exact one-step curvature $$\|k_t\|_2^2$$) pins the stable contraction interval to $$\beta_t \in (0, 2)$$: $$\beta_t \in (0, 1]$$ shrinks the current key's residual monotonically ($$\beta_t = 1$$ clears it in one step), while $$\beta_t \in (1, 2)$$ overshoots to the other side while still contracting.
+For i.i.d. samples and constant $$\alpha,\beta$$, the mean fixed point satisfies
 
-One precision note: $$\beta_t$$ is only the **Euclidean normalized step size** along the current key $$k_t$$. Successive keys are not orthogonal, and $$\beta_t$$ does not decompose the update against the tangent space of $$S_t$$, so by itself it is not yet an "effective learning rate" for how much the memory's *direction* turns.
+$$
+S_\star[(1-\alpha)I+\alpha\beta\Sigma]=\beta C,
+$$
+
+which gives
+
+$$
+S_\star=\frac1\alpha C(\Sigma+\lambda I)^{-1},
+\qquad
+\lambda=\frac{1-\alpha}{\alpha\beta}.
+\tag{8}
+$$
+
+The outer factor $$1/\alpha$$ is absorbed by RMSNorm, whereas the inner ridge term $$\lambda I$$ generally changes directions.
+
+Take a 2D example. Keys $$e_1,e_2$$ appear with probabilities $$p_1,p_2$$, with matching values $$e_1,e_2$$. Then $$\Sigma=C=\operatorname{diag}(p_1,p_2)$$ and the ideal state is $$P^*=I$$. With the ridge term, up to a common scalar, the fixed point becomes
+
+$$
+\operatorname{diag}\left(
+\frac{p_1}{p_1+\lambda},\,
+\frac{p_2}{p_2+\lambda}
+\right).
+\tag{9}
+$$
+
+For $$p_1=0.8,p_2=0.2,\lambda=0.2$$, the two entries are $$0.8$$ and $$0.5$$. Querying $$e_1$$ or $$e_2$$ alone still points in the right direction, but the mixed query $$(e_1+e_2)/\sqrt2$$ tilts from the ideal $$45^\circ$$ down to $$\arctan(0.5/0.8)\approx32^\circ$$.
+
+Rare keys receive fewer fresh writes while still getting decayed at every step alongside frequent keys, so they are suppressed more strongly. That is the recency ridge bias here. When $$\Sigma$$ is isotropic, the ridge only rescales the whole state; directional tilt comes from anisotropic shrinkage across frequencies.
+
+The equivalence between GDN and regularized regression is established in [Test-Time Regression](https://arxiv.org/abs/2501.12352), and [MIRAS](https://arxiv.org/abs/2504.13173) similarly frames forgetting as retention regularization. What we highlight here is specifically which shrinkages pass through normalized readout as directional bias.
+
+### Locking the sphere: a scale convention can create the same bias
+
+Projecting plain DeltaNet onto $$\|S\|_F=R$$ after every step does not automatically preserve directions either. The corresponding population constrained problem is
+
+$$
+\min_{\|S\|_F=R}\frac12\mathbb E\|Sk-v\|^2.
+$$
+
+Its Lagrangian stationary condition is $$S\Sigma-C+\lambda S=0$$, giving
+
+$$
+S_R=C(\Sigma+\lambda I)^{-1},\qquad \|S_R\|_F=R.
+\tag{10}
+$$
+
+Whenever the chosen radius $$R$$ is smaller than the unconstrained optimum's norm, the multiplier $$\lambda$$ is strictly positive. In the same 2D distribution with $$R=0.5$$, the direction-preserving point on the sphere is $$(0.3536,0.3536)$$ ($$45^\circ$$), yet squared error prefers $$(0.4667,0.1795)$$: it spends more of its limited norm budget on the high-frequency direction, tilting the mixed readout to about $$21^\circ$$.
+
+Both operations produce a similar directional tilt, for completely different reasons: GDN deliberately down-weights older content, whereas sphere projection only tries to fix the norm yet accidentally distorts content ratios along the way.
+
+For sphere projection, the culprit is that plain regression is still fitting absolute lengths. To make state norm a pure representation convention, we have to move to the right column of the table and scale the write with the state. The next question is: by how much?
+
+## 5. How Much Should the Write Scale with the State?
+
+Many functions $$g$$ are 1-homogeneous—for instance, $$g(S)=\|S\|_F$$. Homogeneity only demands that the write scale proportionally with the state; it does not say what ratio the two should maintain. Here **Goal \*** from Section 2 ($$F(S,c)=\frac12\mathbb E\|cSk-v\|_2^2$$) pins that ratio down.
+
+Because $$F(\lambda S,c/\lambda)=F(S,c)$$, differentiating with respect to $$\lambda$$ at $$\lambda=1$$ yields the Euler identity:
+
+$$
+\boxed{
+\langle S,\nabla_SF\rangle_F
+=c\,\partial_cF
+=c\left(c\langle S,S\Sigma\rangle_F-\langle S,C\rangle_F\right).
+}
+\tag{11}
+$$
+
+The left-hand side is the component of the gradient along $$S$$ itself—the radial part that merely stretches or shrinks the state—and it is governed exactly by the scale derivative $$c\,\partial_c F$$. Choosing the optimal scale for the current state,
+
+$$
+c^*(S)=\frac{\langle S,C\rangle_F}{\langle S,S\Sigma\rangle_F},
+\qquad
+ g^*(S)=\frac1{c^*(S)},
+\tag{12}
+$$
+
+sets $$\partial_cF=0$$ and makes the population gradient orthogonal to $$S$$. (Below we work in the region where a positive optimal scale exists.)
+
+Plugging this into the update with $$\gamma=\beta$$ and no forgetting yet gives
+
+$$
+\boxed{
+S_{t+1}=S_t-\beta\big(S_tk_t-g^*(S_t)v_t\big)k_t^\top.
+}
+\tag{13}
+$$
+
+It satisfies two properties at once.
+
+First, $$g^*(\lambda S)=\lambda g^*(S)$$, so the entire update is 1-homogeneous. Second, its expected increment satisfies
+
+$$
+\mathbb E[\Delta S\mid S]
+=-\beta\big(S\Sigma-g^*(S)C\big),
+\qquad
+\langle S,\mathbb E[\Delta S\mid S]\rangle_F=0.
+\tag{14}
+$$
+
+With a constant step size and samples drawn from the distribution defining $$C,\Sigma$$, the population fixed point satisfies $$S\Sigma=g^*(S)C$$, i.e. $$S=g^*(S)P^*$$: it lands directly on the target ray with no extra ridge term.
+
+**Homogeneity removes dependence on state length; this calibration ensures the population fixed point lies on the right regression ray.** Once both hold, fixing the state norm no longer injects the extra ridge seen in the sphere trap.
+
+### State length no longer controls the angular step
+
+Having settled the direction of the fixed point, let us check how each step moves the direction—bringing us back to our opening question of whether enlarging the state weakens the next write.
+
+Write GDN's state as $$S_t=r_tU_t$$ with $$r_t=\|S_t\|_F$$ and $$\|U_t\|_F=1$$. Its direction evolves as
+
+$$
+U_{t+1}=N_F\left[
+U_t(I-\beta_tk_tk_t^\top)
++\frac{\beta_t\|v_t\|_2}{\alpha_t r_t}\widehat v_tk_t^\top
+\right],
+\tag{15}
+$$
+
+where $$N_F(X)=X/\|X\|_F$$. The factor $$\beta_t\|v_t\|_2/(\alpha_t r_t)$$ controls how strongly the new write pushes against the old state. Thus the forget gate plays two roles at once: it down-weights older content and indirectly modulates future directional step sizes through $$r_t$$.
+
+A homogeneous update behaves differently. Whenever $$g(rU)=rg(U)$$ (setting $$\alpha=1$$ for now), Eq. (13) reduces to
+
+$$
+U^+=N_F(U-\beta H),
+\qquad
+H=(Uk-g(U)v)k^\top.
+\tag{16}
+$$
+
+The radius $$r$$ drops out completely. Decomposing $$H=\xi U+H^\perp$$ into radial and tangential parts (with $$\xi=\langle U,H\rangle_F$$), the single-step turning angle is
+
+$$
+\theta=\operatorname{atan2}\left(
+\beta\|H^\perp\|_F,\,1-\beta\xi
+\right).
+\tag{17}
+$$
+
+Now $$\beta$$ is a scale-free directional step coefficient; how far the state rotates depends only on $$\beta$$ and the residual geometry at $$U$$. Exact population calibration zeros out the expected radial component without requiring every single stochastic step to be purely tangential.
 
 <details markdown="1">
-<summary>Proof: why the single-step contraction interval is (0, 2)</summary>
+<summary>Why does a scale-invariant objective still need step-size preconditioning?</summary>
 
-For the instantaneous loss $$\ell_t(S) = \frac{1}{2}\|S k_t - v_t\|_2^2$$, the gradient is $$\nabla_S \ell_t(S_t) = (S_t k_t - v_t) k_t^\top$$. Right-multiplying $$S_{t+1} = S_t - \eta_t (S_t k_t - v_t) k_t^\top$$ by $$k_t$$ and subtracting $$v_t$$ gives Eq. (9). Taking squared norms yields:
+Eliminating $$c$$ gives the reduced objective $$G(S)=F(S,c^*(S))$$, which satisfies $$G(\lambda S)=G(S)$$. Plain fixed-step Euclidean gradient descent on $$G$$ is not enough, however, because $$\nabla G(\lambda S)=\lambda^{-1}\nabla G(S)$$. In population form, Eq. (13) actually corresponds to
 
 $$
-\ell_t(S_{t+1}) = \frac{1}{2}\|S_{t+1} k_t - v_t\|_2^2 = \big(1 - \eta_t \|k_t\|_2^2\big)^2 \ell_t(S_t).
+\nabla G(S)=(c^*)^2(S\Sigma-g^*C),
+\qquad
+S^+=S-\frac{\beta}{(c^*)^2}\nabla G(S).
+\tag{18}
 $$
 
-When $$S_t k_t \neq v_t$$, the loss strictly decreases in one step if and only if $$\lvert 1 - \eta_t \|k_t\|_2^2 \rvert < 1$$, i.e., $$0 < \eta_t \|k_t\|_2^2 < 2$$. At $$\eta_t \|k_t\|_2^2 = 1$$ the residual vanishes in one step (the exact rank-one Newton step); at $$\ge 2$$ it fails to shrink. Setting $$\|k_t\|_2 = 1$$ and $$\beta_t = \eta_t$$ decouples stability from key length and fixes it to $$\beta_t \in (0, 2)$$. $$\blacksquare$$
+It is this step-size preconditioning by $$(c^*)^{-2}$$ that makes the gradient step 1-homogeneous.
 
 </details>
 
-<details markdown="1">
-<summary>Derivation: NLMS and one-step Newton curvature from scale and orthogonal equivariance</summary>
+In outer scale-invariant networks, weight decay regulates the effective learning rate through parameter norm without changing the optimal solution set. In plain DeltaNet, the inner regression is not scale-invariant, so forgetting also induces genuine regression shrinkage. Homogeneous calibrated updates strip state length out of the angular step size; if you still want to down-weight older memories, you can add a forget gate separately.
 
-Drop the outer projections for a moment and keep unnormalized nonzero keys $$k_t$$ without forgetting ($$\alpha_t = 1$$). Write $$e_t \triangleq S_t k_t - v_t$$ and $$G_t \triangleq \nabla_S \ell_t(S_t) = e_t k_t^\top$$. Under any rescaling and orthogonal change of coordinates $$k_t' = a U k_t$$, $$v_t' = b V v_t$$ ($$a, b > 0$$, $$U \in O(d_k)$$, $$V \in O(d_v)$$), consistency of $$S_t' k_t' = v_t'$$ requires $$S_t' = \frac{b}{a} V S_t U^\top$$. The error transforms as $$e_t' = b V e_t$$, whereas the gradient transforms as:
+## 6. Three Calibration Schemes, and an Independent Forget Gate
 
-$$
-G_t' = (S_t' k_t' - v_t')(k_t')^\top = a b\, V G_t U^\top.
-$$
+The optimal scale $$c^*(S)$$ gives us a reference point. There are three straightforward ways to treat the scale variable $$c$$ in Goal \*.
 
-State and gradient scale differently ($$\frac{b}{a}$$ vs. $$a b$$), so a fixed-step Euclidean update picks up a spurious $$a^2$$ factor. Requiring an update increment $$\Delta S = \phi(S, k, v)$$ to be equivariant—$$\phi(\frac{b}{a} V S U^\top, a U k, b V v) = \frac{b}{a} V \phi(S, k, v) U^\top$$—and plugging in $$U = I$$, $$V = I$$, $$a = 1/\|k\|_2$$, $$b = 1/\|v\|_2$$ gives:
+**Fix $$c$$.** Setting $$c=1$$ gives plain DeltaNet, letting state norm adapt on its own to the regression target; adding decay on the old state yields GDN. It is simple, at the cost of keeping directional updates coupled to state length.
 
-$$
-\phi(S, k, v) = \frac{\|v\|_2}{\|k\|_2}\, F\!\left(\frac{\|k\|_2}{\|v\|_2} S,\; \hat{k},\; \hat{v}\right).
-$$
-
-Taking the simplest linear choice $$F(X, \hat{k}, \hat{v}) = \beta(\hat{v} - X \hat{k})\hat{k}^\top$$ recovers normalized LMS (NLMS):
+**Learn $$c$$.** Update $$S$$ and $$u=\log c$$ jointly on $$F(S,c)$$. Letting $$P=cS$$, $$z=Pk$$, and $$e=z-v$$, using step size $$\beta/c^2$$ on $$S$$ and $$\eta$$ on $$u$$ collapses both updates into a single matrix:
 
 $$
-S_{t+1} = S_t - \frac{\beta_t}{\|k_t\|_2^2}(S_t k_t - v_t) k_t^\top.
+P^+=a\big[P-\beta ek^\top\big],
+\qquad
+a=\exp(-\eta z^\top e).
+\tag{19}
 $$
 
-Likewise, along the 1D slice $$\varphi(\zeta) \triangleq \ell_t(S_t + \zeta G_t) = \frac{1}{2}\|(1 + \zeta \|k_t\|_2^2) e_t\|_2^2$$, we have $$\varphi''(0) = \|k_t\|_2^4 \|e_t\|_2^2 = \|k_t\|_2^2 \|G_t\|_F^2$$, so the exact one-step Newton step size is also $$1 / \|k_t\|_2^2$$. Modern linear attention normalizes $$k_t$$ before writing, keeping outer $$W_k \mapsto a W_k$$ invariant and fixing the directional curvature at $$1$$. $$\blacksquare$$
+This sits in the bottom-left cell of our table: $$a$$ scales the retained state and the new write together—shrinking when the prediction overshoots along its own direction and growing when it undershoots—recalibrating the scale relationship between the state and future writes.
 
-</details>
+**Eliminate $$c$$.** Plugging $$c^*(S)$$ from Eq. (12) into Eq. (13) gives the homogeneous calibrated update, which stops fitting irrelevant absolute lengths and introduces no extra ridge. Estimating $$g^*$$ with smoothed statistics such as $$\operatorname{EMA}(\|Sk\|^2)/\operatorname{EMA}((Sk)^\top v)$$ yields a practical middle ground between one-step online learning and exact population calibration.
 
-### Relative write gain $$\rho_t$$ and the tangential effective step size
+All three schemes address calibration. Whether to additionally decay the old state is a separate decision.
 
-Gated DeltaNet (GDN) multiplies the old state by a scalar forget gate $$\alpha_t \in (0, 1]$$:
+### A corollary: calibration does not abolish forgetting
 
-$$
-S_{t+1} = \alpha_t S_t (I - \beta_t k_t k_t^\top) + \beta_t v_t k_t^\top. \tag{10}
-$$
-
-Split the nonzero state into norm and direction, $$r_t = \|S_t\|_F > 0$$ and $$U_t = S_t / r_t$$, with $$\hat{v}_t = v_t / \|v_t\|_2$$. Dividing Eq. (10) by $$\alpha_t r_t$$ and renormalizing reveals the direction dynamics that the readout actually sees:
+Consider the top-right cell of the table: combine exact calibrated writing with decay applied only to the old state,
 
 $$
-U_{t+1} = N_F\!\Big(U_t (I - \beta_t k_t k_t^\top) + \rho_t\, \hat{v}_t k_t^\top\Big), \qquad
-\boxed{\ \rho_t \triangleq \frac{\beta_t\, \|v_t\|_2}{\alpha_t\, r_t}\ } \tag{11}
+S^+=\alpha S(I-\beta kk^\top)+\beta g^*(S)vk^\top.
+\tag{20}
 $$
 
-Here $$\rho_t$$ in Eq. (11) measures the **normalized gain of the new write relative to the old state**. When $$\beta_t \|v_t\|_2 / \alpha_t$$ is roughly comparable across steps, a smaller initial $$r_t$$ gives a larger $$\rho_t$$, making early writes move the direction more easily—though $$\rho_t$$ alone does not guarantee an automatic warm-up schedule for the angular step. When $$\alpha \in (0, 1)$$ is constant, decay holds the norm on a plateau: dropping the erasure and cross terms and treating $$\alpha, \beta, \|v\|_2$$ as constants gives the steady-state approximation $$\bar{\rho} \approx \sqrt{1 - \alpha^2} / \alpha \approx \sqrt{2(1 - \alpha)}$$ (for $$\alpha$$ close to 1). That echoes the weight-decay mechanism in Hyperball and Jianlin Su's analysis, where decay regulates the relative write amplitude via the equilibrium norm.
-
-<details markdown="1">
-<summary>Derivation: steady-state relative write gain approximation</summary>
-
-With $$\|k_t\|_2 = 1$$, write Eq. (10) as $$S_{t+1} = \alpha_t S_t + (\beta_t v_t - \alpha_t \beta_t S_t k_t) k_t^\top$$. Using $$\langle S_t, w k_t^\top \rangle_F = \langle S_t k_t, w \rangle$$ to expand $$r_{t+1}^2 = \|S_{t+1}\|_F^2$$ gives the exact norm recurrence:
+Define the scale-free directional curvature
 
 $$
-r_{t+1}^2 = \alpha_t^2 r_t^2 + \beta_t^2 \|v_t\|_2^2 - \alpha_t^2 \beta_t (2 - \beta_t)\|S_t k_t\|_2^2 + 2\alpha_t \beta_t (1 - \beta_t)\langle S_t k_t, v_t\rangle.
+\chi(S)=\frac{\langle S,S\Sigma\rangle_F}{\|S\|_F^2}.
 $$
 
-Dropping the erasure term ($$\|S_t k_t\|_2^2$$) and cross term ($$\langle S_t k_t, v_t\rangle$$) and treating $$\alpha \in (0, 1)$$, $$\beta$$, and $$\|v\|_2$$ as constants reduces this to $$r_{t+1}^2 \approx \alpha^2 r_t^2 + \beta^2 \|v\|_2^2$$. Setting $$r_{t+1} = r_t = r_\star$$ gives $$r_\star^2 \approx \frac{\beta^2 \|v\|_2^2}{1 - \alpha^2}$$. Substituting into $$\rho_t = \frac{\beta \|v\|_2}{\alpha r_t}$$ cancels both $$\beta$$ and $$\|v\|_2$$:
+Solving for a directional fixed point $$\mathbb E[S^+\mid S]=\mu S$$ of the population update gives
 
 $$
-\bar{\rho} \approx \frac{\beta \|v\|_2}{\alpha r_\star} = \frac{\sqrt{1 - \alpha^2}}{\alpha} = \frac{\sqrt{(1 - \alpha)(1 + \alpha)}}{\alpha} \approx \sqrt{2(1 - \alpha)} \qquad (\alpha \to 1^-). \quad \blacksquare
-$$
-
-</details>
-
-Strictly speaking, however, $$\rho_t$$ is still **not** the angular effective learning rate. To see how far the direction actually rotates, we have to orthogonally decompose the **entire residual update** onto the tangent space at $$U_t$$.
-
-For $$r_t > 0$$ and $$\|k_t\|_2 = 1$$, let $$u_t = U_t k_t$$, $$e_t = u_t - v_t / (\alpha_t r_t)$$, and $$H_t = e_t k_t^\top$$, so the update inside $$N_F(\cdot)$$ in Eq. (11) is $$U_t - \beta_t H_t$$. Projecting $$H_t$$ onto $$U_t$$ under the Frobenius inner product gives:
-
-$$
-\begin{aligned}
-\xi_t &\triangleq \langle U_t, H_t \rangle_F = u_t^\top e_t, \qquad H_t^\perp \triangleq H_t - \xi_t U_t, \\
-U_t - \beta_t H_t &= (1 - \beta_t \xi_t) U_t - \beta_t H_t^\perp, \qquad \langle U_t, H_t^\perp \rangle_F = 0.
-\end{aligned} \tag{12}
-$$
-
-Whenever the radial coefficient $$1 - \beta_t \xi_t > 0$$, pulling it outside $$N_F(\cdot)$$ writes Eq. (12) cleanly as "step along the projected residual, then normalize":
-
-$$
-U_{t+1} = N_F\!\left(U_t - \eta_t^{\mathrm{tan}} H_t^\perp\right), \qquad
-\boxed{\ \eta_t^{\mathrm{tan}} = \frac{\beta_t}{1 - \beta_t \xi_t} = \frac{\beta_t}{1 - \beta_t \|u_t\|_2^2 + \rho_t\, u_t^\top \hat{v}_t}\ } \tag{13}
-$$
-
-This $$\eta_t^{\mathrm{tan}}$$ in Eq. (13) is the **tangential effective step size** relative to $$H_t^\perp$$: the radial components of both erasure and write enter the denominator, while their tangential components stay in $$H_t^\perp$$. Even then, the step-size coefficient is not the actual rotation angle. Letting $$\theta_t = \arccos\langle U_t, U_{t+1} \rangle_F$$, whenever the next state is nonzero we have:
-
-$$
-\|H_t^\perp\|_F^2 = \|e_t\|_2^2 - \xi_t^2, \qquad
-\theta_t = \operatorname{atan2}\!\left(\beta_t \|H_t^\perp\|_F,\; 1 - \beta_t \xi_t\right). \tag{14}
-$$
-
-Only when $$1 - \beta_t \xi_t > 0$$ and $$\eta_t^{\mathrm{tan}} \|H_t^\perp\|_F \ll 1$$ do we have $$\theta_t \approx \eta_t^{\mathrm{tan}} \|H_t^\perp\|_F$$; when the radial factor is zero or negative, use Eq. (14) directly rather than reading $$\eta_t^{\mathrm{tan}}$$ as a small-step learning rate. Notice too that "effective" here is tied to the chosen residual scaling rather than being a universal scalar set solely by $$\alpha_t$$ or $$r_t$$ (so $$\bar{\rho}$$ cannot directly replace the steady-state turning angle). And at $$r_t = 0$$, the direction decomposition is undefined and the state is simply seeded by Eq. (10).
-
-### The forget gate is a schedule for an auxiliary scale
-
-This is my favorite identity in the post. Keep $$c \equiv 1$$ fixed, relabel GDN's actual state in Eq. (10) as $$P_t$$, and introduce an **auxiliary scale** $$\lambda_0 = 1$$, $$\lambda_{t+1} = \alpha_t \lambda_t > 0$$, along with an auxiliary state $$\widetilde{S}_t = P_t / \lambda_t$$. Dividing Eq. (10) by $$\lambda_{t+1}$$ gives an exact state reparameterization:
-
-$$
-\widetilde{S}_{t+1} = \widetilde{S}_t (I - \beta_t k_t k_t^\top) + \frac{\beta_t}{\lambda_{t+1}}\, v_t k_t^\top
-\quad\Longleftrightarrow\quad
-P_{t+1} = \frac{\lambda_{t+1}}{\lambda_t}\, P_t (I - \beta_t k_t k_t^\top) + \beta_t v_t k_t^\top, \qquad \frac{\lambda_{t+1}}{\lambda_t} = \alpha_t. \tag{15}
-$$
-
-In auxiliary coordinates, the exact same GDN trajectory reads as "no explicit forget gate, with write amplitudes rescaled over time." Let us be careful about what Eq. (15) is and is not: it is a coordinate reparameterization, not a release of $$c \equiv 1$$. The underlying objective is still $$\frac{1}{2}\|P_t k_t - v_t\|_2^2 = \frac{1}{2}\|\lambda_t \widetilde{S}_t k_t - v_t\|_2^2$$, and the auxiliary write divides by $$\lambda_{t+1}$$ rather than $$\lambda_t$$, so this is not plain SGD on $$F(\widetilde{S}, \lambda_t)$$. It gives a scale-schedule interpretation of the forget gate, rather than eliminating forgetting or turning into the residual-driven calibration of the next section.
-
-### What you get and what you pay
-
-Because Eq. (10) is affine in $$S_t$$, it is natively parallel with chunkwise WY—that is why Gated DeltaNet is the workhorse. The price of a constant $$\alpha \in (0, 1)$$ is that rarely seen keys get discounted more often, so the mean fixed point carries a recency ridge:
-
-$$
-S_\star^{\mathrm{GDN}} = \frac{1}{\alpha}\, C\!\left(\Sigma + \frac{1 - \alpha}{\alpha \beta} I\right)^{-1}. \tag{16}
+\boxed{
+S\propto C(\Sigma+\lambda I)^{-1},
+\qquad
+\lambda=\frac{1-\alpha}{\alpha}\chi(S).
+}
+\tag{21}
 $$
 
 <details markdown="1">
-<summary>Proof of the GDN mean fixed point (16)</summary>
+<summary>Two-step derivation</summary>
 
-Assume constant $$\alpha \in (0, 1)$$, $$\beta > 0$$, and i.i.d. pairs $$(k_t, v_t)$$ with finite second moments, $$\Sigma = \mathbb{E}[k_t k_t^\top]$$, $$C = \mathbb{E}[v_t k_t^\top]$$. Since the current sample is independent of $$S_t$$, taking expectations in Eq. (10) gives:
+Let $$A=\langle S,S\Sigma\rangle_F$$ and $$B=\langle S,C\rangle_F$$; exact calibration satisfies $$g^*B=A$$. The directional fixed-point equation is
 
 $$
-\mathbb{E}[S_{t+1}] = \alpha\, \mathbb{E}[S_t](I - \beta \Sigma) + \beta C.
+\alpha S-\alpha\beta S\Sigma+\beta g^*C=\mu S.
 $$
 
-Setting $$\mathbb{E}[S_{t+1}] = \mathbb{E}[S_t] = S_\star^{\mathrm{GDN}}$$ yields $$S_\star^{\mathrm{GDN}}[(1 - \alpha)I + \alpha\beta \Sigma] = \beta C$$. Because $$\Sigma \succeq 0$$ and $$\alpha < 1$$, the matrix in brackets is positive definite and invertible, giving Eq. (16). (This characterizes the fixed point of the mean recurrence; actual convergence also requires step-size stability.) $$\blacksquare$$
+Taking the inner product with $$S$$ yields $$\mu=\alpha+\beta(1-\alpha)\chi$$. Rearranging the equation as
+
+$$
+S\left(\Sigma+\frac{\mu-\alpha}{\alpha\beta}I\right)
+=\frac{g^*}{\alpha}C
+$$
+
+immediately gives Eq. (21).
 
 </details>
 
-In a drifting world, the ridge in Eq. (16) is the whole point of forgetting. In a stationary one, it is a bias. Keep that tension in mind—it comes back at the end.
+This ridge strength no longer depends on the state's overall length, yet it still alters the relative weights across directions. Calibration removes artifacts of arbitrary scale; it does not eliminate forgetting itself.
 
----
+So the top-right cell does not force the model to keep all old content—it simply makes forgetting independent of whatever state norm happens to be chosen.
 
-## 6. Mainline 2: Learn $$c$$ by Joint Online SGD on $$(S, \log c)$$
+## 7. What Changes Should Be Left to Forgetting?
 
-The per-token CHI loss $$\ell_t(S, c) = \frac{1}{2}\|c S k_t - v_t\|_2^2$$ in Eq. (5) already has two variables. **So why not run online SGD on both?**
+Channel-wise gates apply different decay rates to different features. By Section 2, this generally changes the readout direction on mixed queries, so it modifies stored content rather than acting as a harmless common scale. Its role is feature-selective forgetting; which directions ought to be kept depends on the task.
 
-Two clean choices make this neat. First, the split $$(S, c) \mapsto (b S, c / b)$$ is arbitrary, so we precondition the $$S$$-step by $$\eta_t = \beta_t / c_t^2$$ to make the step invariant to that reparameterization. Second, to keep $$c > 0$$ for free, we update $$u = \log c$$ in log space:
+Likewise, targets drift in real sequences, and the stationary $$P^*$$ is only an analytical reference. The goal is not to eliminate every ridge, but to tell apart whether suppressing a direction serves to track new information or is merely an unintended byproduct of scale bookkeeping.
 
-$$
-\begin{aligned}
-z_t &= c_t S_t k_t, \qquad e_t = z_t - v_t, \\
-S_{t+1} &= S_t - \frac{\beta_t}{c_t}\, e_t k_t^\top, \qquad
-u_{t+1} = u_t - \gamma_t\, z_t^\top e_t, \qquad c_{t+1} = e^{u_{t+1}}.
-\end{aligned} \tag{17}
-$$
+The readout ignores a common scale, and the update can respect that same symmetry. **Scaling the old state and the new write together turns state length into a pure convention, leaving the balance between old and new content to forgetting.**
 
-(Quick check: $$\nabla_S \ell_t = c_t\, e_t k_t^\top$$, and $$\partial_u \ell_t = c_t\,\partial_c \ell_t = z_t^\top e_t$$.)
+## 8. Takeaway
 
-Now define the effective state $$P_t = c_t S_t$$ and the step-to-step scale ratio $$a_t = c_{t+1} / c_t = \exp(-\gamma_t z_t^\top e_t)$$. Multiply the $$S$$-update in Eq. (17) by $$c_{t+1}$$, and **$$S$$ and $$c$$ disappear completely—we only need to maintain one matrix:**
-
-$$
-\boxed{\
-z_t = P_t k_t, \quad e_t = z_t - v_t, \quad
-a_t = \exp\!\big(-\gamma_t\, z_t^\top e_t\big), \quad
-P_{t+1} = a_t\big[P_t - \beta_t e_t k_t^\top\big]\ } \tag{18}
-$$
-
-Three things fall right out of Eq. (18):
-
-1. **A two-sided gate driven by the residual.** $$z_t^\top e_t = \|z_t\|_2^2 - z_t^\top v_t$$ is a single-sample estimate of the radial gradient from Eq. (7). When the prediction overshoots along its own direction, $$a_t < 1$$ (shrink); when it undershoots, $$a_t > 1$$ (grow); at zero residual, $$a_t = 1$$. Unlike a forget gate, it can go above 1.
-2. **It multiplies the new write too.** GDN's $$\alpha_t$$ in Eq. (10) multiplies only the old memory, whereas $$a_t$$ sits outside the bracket and scales the retained memory and the new write together—because $$c$$ calibrates the *entire* linear map.
-3. **One-step global calibration.** Although the current step's RMSNorm eats $$a_t$$, $$a_t$$ genuinely changes the next predictions $$z_{t+1}$$ and residuals $$e_{t+1}$$. Suppose the global scale of $$v$$ suddenly drifts. Plain DeltaNet only fixes keys as they happen to reappear, leaving the memory at *mixed* scales—running straight into the counterexample (4) from Section 3. Here $$a_t$$ broadcasts the rescaling across the whole memory matrix in one step.
-
-**Engineering.** Writing $$c = e^u > 0$$ does not by itself prevent $$c \to 0$$ or an exploding exponent. Just like the curvature argument for $$k$$ in Section 5, the local Gauss–Newton curvature along $$u = \log c$$ is $$\|z_t\|_2^2$$, so we normalize the step and clip:
-
-$$
-\tilde{\gamma}_t = \frac{\gamma_0}{\|z_t\|_2^2 + \|v_t\|_2^2 + \epsilon}, \qquad
-a_t = \exp\!\Big(\operatorname{clip}\big(-\tilde{\gamma}_t\, z_t^\top e_t,\; -\delta_{\max},\; \delta_{\max}\big)\Big). \tag{19}
-$$
-
-One design note: from a single token alone, $$a_t$$ cannot tell "this value is unusually salient" from "the global scale has drifted." Normalization and clipping in Eq. (19) are what stop one loud token from rescaling the entire memory—treat them as part of the method, not decoration.
-
-To first order, $$a_t \approx 1 - \gamma\,\langle \nabla_P \ell_t,\; P_t\rangle_F$$. So Mainline 2 is the delta rule plus one extra descent direction—the state matrix $$P_t$$ itself—acting as a rank-one preconditioner along the direction the readout ignores.
-
----
-
-## 7. Mainline 3: Eliminate $$c$$ — Calibrated Hyperballs and Why You Never Needed the Sphere
-
-The third answer is to plug in the instantaneous best scale $$c = c^*(S)$$ from Eq. (8) at every step. Then $$\partial_c F = 0$$, and by Eq. (7) the expected gradient is **purely tangential**. In fact, eliminating $$c$$ turns the CHI loss in Eq. (5) into the reduced objective $$G(S) \triangleq F(S, c^*(S))$$, which is genuinely scale-invariant ($$G(a S) = G(S)$$): it depends only on direction, finally matching the $$L(cW) = L(W)$$ assumption in the outer Hyperball paper.
-
-Before writing the calibrated fix, though, let us look at the tempting wrong way.
-
-### 7.1 The trap: hard-projecting plain DeltaNet onto a sphere
-
-If we only care about directions, why not follow Hyperball naively and keep $$\|S\|_F = R$$ fixed by projecting after every step?
-
-$$
-S_{t+1} = R\, N_F\!\big(S_t - \beta_t (S_t k_t - v_t) k_t^\top\big). \tag{20}
-$$
-
-The problem is that the plain MSE loss $$\frac{1}{2}\|S k - v\|_2^2$$ is not scale-invariant, so the radial force in Eq. (7) is real. Hard-projecting every step in Eq. (20) cuts off that radial force, which reappears in the stationary equation as a normal Lagrange multiplier $$-\lambda S$$ and pulls the state to a **hidden spherical ridge solution**:
-
-$$
-S_R = C(\Sigma + \lambda I)^{-1}, \qquad \|S_R\|_F = R. \tag{21}
-$$
-
-<details markdown="1">
-<summary>Proof of the sphere-constrained ridge stationary point (21)</summary>
-
-For the population loss $$L(S) = \frac{1}{2}\mathbb{E}\|S k - v\|_2^2$$, the gradient is $$\nabla L(S) = S\Sigma - C$$. Under the constraint $$\|S\|_F = R > 0$$, the Lagrangian stationarity condition is:
-
-$$
-S\Sigma - C + \lambda S = 0, \qquad \|S\|_F = R.
-$$
-
-Whenever $$\Sigma + \lambda I$$ is invertible, this solves to Eq. (21), with $$\lambda$$ fixed by $$\|S_R\|_F = R$$. (Singular cases require separate handling; also, Eq. (21) is the population stationary condition under the sphere constraint—constant-step stochastic iteration does not necessarily converge to this exact point, and $$\lambda > 0$$ corresponds to standard positive ridge regularization.) $$\blacksquare$$
-
-</details>
-
-A 2D example makes it obvious why Eq. (21) bends directions. Suppose we store two orthogonal facts, a frequent one (80% of the time) and a rare one (20%), with ideal memory $$S = \operatorname{diag}(1, 1)$$ (norm $$\sqrt{2} \approx 1.414$$):
-
-$$
-L(s_1, s_2) = \frac{1}{2}\big[0.8\,(s_1 - 1)^2 + 0.2\,(s_2 - 1)^2\big]. \tag{22}
-$$
-
-Lock the radius at $$R = 0.5$$. The unbiased point on the circle is $$(0.3536,\; 0.3536)$$ with $$L \approx 0.2089$$. Solving the Lagrange conditions $$0.8(s_1 - 1) + \lambda s_1 = 0$$, $$0.2(s_2 - 1) + \lambda s_2 = 0$$, and $$s_1^2 + s_2^2 = 0.25$$ gives $$\lambda \approx 0.9143$$ and:
-
-$$
-s_1 \approx 0.4667, \qquad s_2 \approx 0.1795, \qquad L \approx 0.1811 \quad (\text{lower!}). \tag{23}
-$$
-
-The contours of Eq. (22) are ellipses stretched by $$2\times$$ along $$s_2$$, so they touch the circle first near the $$s_1$$ axis. Under a tight norm budget, MSE would rather sacrifice the rare fact to reduce average squared error—leaving the frequent weight $$2.6\times$$ larger than the rare one in Eq. (23). As $$R \to 0^+$$ the ratio approaches $$4 : 1$$, aligning with $$C$$: **plain linear attention with no erasure at all.** A mixed query that should read out at $$45^\circ$$ comes out near $$21^\circ$$ instead, and outer RMSNorm cannot repair a ratio that is already broken inside the memory.
-
-> **Side remark (why calibrated spherical updates keep the residual magnitude instead of normalizing the update direction like outer Hyperball).** Outer Hyperball writes $$W_{t+1} = R\,N_F\big(W_t - \eta_t R\,N_F(u_t)\big)$$, normalizing both the weights and the update direction. Inside online linear attention, however, the gradient $$G_t = e_t k_t^\top$$ has norm $$\|e_t\|_2$$. Dividing out $$\|e_t\|_2$$ erases the signal of whether a fact has already been memorized, destroys the exact fixed point at $$e_t = 0$$, and makes stored memories jitter under small perturbations. Keeping the residual magnitude (clipping only an upper bound if needed) preserves the fixed point.
-
-### 7.2 The fix: give the write term one power of $$S$$
-
-The root cause takes one line to state:
-
-$$
-S_{t+1} = \underbrace{S_t (I - \beta_t k_t k_t^\top)}_{\text{degree 1 in } S_t} + \underbrace{\beta_t v_t k_t^\top}_{\text{degree 0 in } S_t}. \tag{24}
-$$
-
-The write term in Eq. (24) has no $$S_t$$ in it. Rescale $$S_t$$ and you immediately distort the ratio between old memory and new writes.
-
-The fix is to multiply the write target by a positively 1-homogeneous scalar $$g(S_t)$$ (meaning $$g(a S) = a\, g(S)$$ for all $$a > 0$$):
-
-$$
-\boxed{\ S_{t+1} = S_t - \beta_t\big(S_t k_t - g(S_t)\, v_t\big) k_t^\top\ } \tag{25}
-$$
-
-The natural choice is $$g(S) = 1 / c^*(S) = \langle S, S\Sigma\rangle_F / \langle S, C\rangle_F$$ from Eq. (8): degree 2 over degree 1, hence degree 1 overall. This is literally Mainline 2 with $$c$$ replaced by its best response $$c^*(S)$$. Whenever samples are drawn from the distribution defining $$F$$ and the step size is independent of the current sample, Eq. (7) makes the expected increment orthogonal to $$S_t$$—giving **zero ridge bias** under arbitrary anisotropic keys while letting $$\|v_t\|_2$$ continue to weight per-token salience.
-
-In practice $$c^*(S)$$ has to be estimated online, giving a spectrum of estimators:
-
-- **Single-token orthogonal projection:** $$\hat{g}_t = \|p_t\|_2^2 / (p_t^\top v_t)$$ (with $$p_t = S_t k_t$$). When $$p_t^\top v_t > 0$$, this scales $$v_t$$ along its positive ray until $$p_t$$ is the foot of the perpendicular, making even the single-step increment $$\Delta S_t$$ strictly orthogonal to $$S_t$$. It is pretty, but noisy: the target norm becomes $$\|p_t\|_2 / \cos\theta$$, which washes out $$\|v_t\|_2$$ salience and writes weakly on keys the memory has never seen ($$p_t \approx 0$$).
-- **Smoothed statistics:** for instance, $$\hat{g}_t = \mathrm{EMA}(\|p\|_2^2) / \mathrm{EMA}(p^\top v)$$. Tracking population $$1/c^*(S)$$ via exponential moving averages filters out single-step noise while keeping $$\|v_t\|_2$$ salience intact. If you occasionally rescale the state $$S \leftarrow S / z$$, divide the numerator EMA by $$z^2$$ and the denominator EMA by $$z$$ so Eq. (25) stays strictly positively 1-homogeneous.
-
-### 7.3 Why you never needed to lock the sphere
-
-> **Lemma (Homogeneous commutation).** Assume initial states are positive multiples of each other and all intermediate states stay nonzero. If every update map $$\mathcal{T}_t$$ is positively 1-homogeneous ($$\mathcal{T}_t(a S) = a\,\mathcal{T}_t(S)$$ for all $$a > 0$$), then "never normalize" and "project back to the sphere of radius $$R$$ after every step" produce states that differ only by a positive scalar at every step $$t$$.
-
-<details markdown="1">
-<summary>Proof of homogeneous commutation by induction</summary>
-
-Let $$X_{t+1} = \mathcal{T}_t(X_t)$$ be the unnormalized trajectory and $$Y_{t+1} = R\,\mathcal{T}_t(Y_t) / \|\mathcal{T}_t(Y_t)\|_F$$ be the sphere-projected trajectory. Assuming $$Y_t = \lambda_t X_t$$ with $$\lambda_t > 0$$, positive 1-homogeneity gives:
-
-$$
-Y_{t+1} = \frac{R\,\mathcal{T}_t(\lambda_t X_t)}{\|\mathcal{T}_t(\lambda_t X_t)\|_F} = \frac{R\,\lambda_t \mathcal{T}_t(X_t)}{\lambda_t \|\mathcal{T}_t(X_t)\|_F} = \frac{R}{\|X_{t+1}\|_F}\, X_{t+1}.
-$$
-
-The positive scalar $$\lambda_t$$ cancels out between numerator and denominator, completing the induction. $$\blacksquare$$
-
-</details>
-
-Through an ideal RMSNorm, both trajectories produce **the exact same outputs**. Hard-locking a radius on every step does not simplify Eq. (25); it just adds an extra full-matrix division per token. In practice you only rescale *occasionally*, for two down-to-earth engineering reasons:
-
-1. The discrete second-order term $$+\|\Delta S_t\|_F^2$$ makes the norm drift slowly upward, so dividing by a scalar now and then keeps values inside the bf16/fp16 range without changing any direction.
-2. For chunkwise WY training, normalizing at chunk boundaries and freezing a per-chunk constant $$g_m$$ (or $$\bar{c}_m$$) inside the chunk turns the intra-chunk recurrence back into the plain linear delta rule.
-
----
-
-## 8. One Formula, and Then One Knob
-
-All three mainlines fit inside a single unified update (keys normalized $$\|k_t\|_2 = 1$$, old prediction $$p_t = S_t k_t$$):
-
-$$
-\boxed{\ S_{t+1} = a_t\Big[\alpha_t S_t - \beta_t\big(\alpha_t p_t - \tilde{v}_t\big) k_t^\top\Big], \qquad o_t = S_{t+1} q_t \xrightarrow{\;\mathrm{RMSNorm}\;} y_t\ } \tag{26}
-$$
-
-The roles in Eq. (26) split cleanly:
-
-- $$\alpha_t$$ inside the bracket multiplies only the old memory: an **exogenous forget gate**;
-- $$a_t$$ outside multiplies retained memory and new write together: an **endogenous residual calibration gate**;
-- whether $$\tilde{v}_t$$ carries the positively 1-homogeneous factor $$g(S_t)$$ determines whether we sit in the **homogeneous / calibrated spherical world**.
-
-| Mainline | $$(\alpha_t,\; a_t,\; \tilde{v}_t)$$ | What it does with $$c$$ | Strengths / costs |
-|---|---|---|---|
-| 1. Free-norm GDN | $$\alpha_t \in (0, 1],\; a_t = 1,\; \tilde{v}_t = v_t$$ | Fix $$c \equiv 1$$; gate acts as an exogenous schedule for auxiliary scale | Natively WY-parallel; recency ridge $$\frac{1-\alpha}{\alpha\beta}$$ |
-| 2. Joint online SGD | $$\alpha_t = 1,\; a_t = e^{-\tilde{\gamma}_t z_t^\top e_t},\; \tilde{v}_t = v_t$$ | One gradient step per token on $$\log c$$ | One-step global recalibration; state-dependent gate needs a recurrent kernel (or per-chunk freezing) |
-| 3. Homogeneous calibrated | $$\alpha_t = 1,\; a_t = 1,\; \tilde{v}_t = g(S_t) v_t$$ | Eliminate $$c$$ via $$c^*(S)$$ | No per-step projection, no ridge bias; chunk-boundary rescaling recovers WY |
-
-We can push this unification one step further—and this is where the perspective earns its keep.
-
-Make a simple change of coordinates: let $$S_t = \kappa_t Q_t$$ with $$\kappa_0 = 1$$ and $$\kappa_{t+1} = a_t \alpha_t \kappa_t$$. Substituting into Eq. (26) and canceling $$\kappa_{t+1}$$ gives:
-
-$$
-\boxed{\ Q_{t+1} = Q_t (I - \beta_t k_t k_t^\top) + \beta_t\, \frac{\tilde{v}_t}{\alpha_t \kappa_t}\, k_t^\top\ } \tag{27}
-$$
-
-Because $$Q_t \propto S_t$$ at every step, **the readout through an ideal RMSNorm is unchanged.** Under an ideal output norm, every member of the family in Eq. (27) is *plain, ungated DeltaNet with a per-token target scale* $$v_t / c_t$$. The three mainlines differ only in how they pick that single scalar sequence $$c_t$$ (corresponding to $$\alpha_t \kappa_t = \kappa_{t+1}$$ in Mainline 1, or the log-space $$c_t$$ in Mainline 2):
-
-| How $$c_t$$ is chosen | Resulting algorithm |
-|---|---|
-| $$c_t \equiv 1$$ | DeltaNet |
-| $$c_t = \prod_{s \le t} \alpha_s$$ (exogenous, input-dependent) | Gated DeltaNet |
-| One online SGD step on $$\log c_t$$ toward $$c^*$$ | Mainline 2 (Joint SGD) |
-| Exact best response $$c_t = c^*(S_t)$$ | Mainline 3 (population $$g$$) |
-| Single-token or EMA estimate of $$c^*(S_t)$$ | Mainline 3 (practical $$g$$) |
-
-(In floating point you would never actually run the $$Q$$-coordinates in Eq. (27), because $$\prod \alpha_s^{-1}$$ explodes exponentially—which is why implementations keep the gated form in Eq. (26). As a *way of thinking*, however, the equivalence is exact.)
-
-Eq. (27) also explains hardware parallelism in one sentence: **chunkwise WY parallelism works when and only when $$c_t$$ is known before the chunk starts.** An exogenous $$c_t$$ (DeltaNet / GDN) is fine. A state-dependent $$c_t$$ (Mainlines 2 and 3) is not, unless you freeze it per chunk.
-
-So the answer to our opening question is: **the optimizer living inside linear attention is online SGD on the CHI loss (5), and the design space largely comes down to how we treat the scale symmetry that RMSNorm creates.** Fix it, learn it, or eliminate it.
-
----
-
-## 9. Minimal Reference Code
-
-```python
-import torch
-
-# Shapes: S [B, H, dv, dk]; q, k [B, H, dk] (k unit-norm, q un-normalized); v [B, H, dv]
-def linear_attention_step(S, q, k, v, beta, mode="gdn", alpha=1.0,
-                          gamma0=0.1, delta_max=0.5, g=None, eps=1e-6):
-    p = torch.einsum("bhvk,bhk->bhv", S, k)                    # old prediction S_t k_t
-
-    if mode == "gdn":            # Mainline 1: fix c=1, exogenous gate
-        e = alpha * p - v
-        S_next = alpha * S - (beta * e).unsqueeze(-1) * k.unsqueeze(-2)
-
-    elif mode == "joint_sgd":    # Mainline 2: learn log c, two-sided gate a_t
-        e = p - v
-        pe = (p * e).sum(-1, keepdim=True)
-        curv = (p * p).sum(-1, keepdim=True) + (v * v).sum(-1, keepdim=True) + eps
-        a = torch.exp((-gamma0 * pe / curv).clamp(-delta_max, delta_max))
-        S_next = a.unsqueeze(-1) * (S - (beta * e).unsqueeze(-1) * k.unsqueeze(-2))
-
-    else:                        # Mainline 3: eliminate c, target g(S_t) v_t
-        if g is None:            # single-token estimate 1/c* (pass a smoothed EMA g in practice)
-            pv = (p * v).sum(-1, keepdim=True)
-            pp = (p * p).sum(-1, keepdim=True)
-            g = torch.where(pv > eps, pp / pv.clamp_min(eps), torch.ones_like(pv))
-        e = p - g * v
-        S_next = S - (beta * e).unsqueeze(-1) * k.unsqueeze(-2)
-        # S=0 is a fixed point of a homogeneous map: seed with v_0 k_0^T.
-        # Rescale by a scalar occasionally to avoid overflow; directions are unaffected.
-
-    o = torch.einsum("bhvk,bhk->bhv", S_next, q)               # -> RMSNorm(o) * SiLU(gate)
-    return S_next, o
-```
-
----
-
-## 10. Open Questions I Find Fun
-
-- **What should $$c$$ track when the world drifts?** Everything above measured "bias" against the stationary $$P^* = C\Sigma^{-1}$$. Real token streams drift, and forgetting is a feature there. The natural next step is to ask which choice of $$c_t$$ is best for *tracking* rather than for stationary convergence.
-- **Channel-wise gates.** The lemma in Section 3 says that a single global scale is the only freedom that never bends directions. Fine-grained, per-channel key decay (as in recent delta-attention variants) is per-direction scaling: in this picture it deliberately trades direction fidelity for selective forgetting. Can we make that trade-off quantitative?
-- **Smoothed estimators of $$c^*$$.** Between "one gradient step" (Mainline 2) and "exact best response" (Mainline 3) lies a whole family of online estimators. Which one is cheap, stable, and chunk-friendly?
-
-Four assumptions every block already makes, one symmetry, and one small question: **what do we do with $$c$$?**
+- **One symmetry mismatch drives most of the behavior.** RMSNorm makes the readout invariant to $$S\mapsto\lambda S$$, whereas in plain DeltaNet the old state is degree-1 homogeneous and the write is degree-0 homogeneous—so state length quietly controls how strongly each new write moves the state.
+- **Readout only leaves one global scale free (Goal \*).** Once queries mix different keys, per-memory scale differences leak into readout directions. All queries share only a single global scale $$c>0$$, leading directly to the calibrated regression objective $$F(S,c)=\frac12\mathbb E\|cSk-v\|_2^2$$.
+- **The $$2\times 2$$ table separates calibration from forgetting.** Multiplying only the old state shifts the balance between old and new content (forgetting), while multiplying old and new together changes the shared scale; whether the write scales homogeneously as $$g(S)vk^\top$$ determines if that shared scale leaks into the next directional update.
+- **Separate intentional forgetting from scale-bookkeeping artifacts.** A gate $$\alpha<1$$ on the old state alone always produces a ridge—even after exact homogeneous calibration, except its strength no longer depends on state norm. By contrast, the ridge from locking plain DeltaNet onto a sphere is purely an artifact of a non-homogeneous write; once the update is 1-homogeneous, sphere projection becomes a harmless gauge convention.
+- **Effective learning rates decouple cleanly.** In GDN, $$\alpha_t$$ simultaneously regulates directional step size via state norm and decays older content. Aligning both the inner objective and the update with readout scale symmetry makes $$\beta$$ a scale-free directional step size, leaving the forget gate with the single job of deciding how much past content to retain.
 
 ---
 
@@ -561,12 +459,12 @@ Four assumptions every block already makes, one symmetry, and one small question
 <summary>Cite this post</summary>
 <p>If you find this post useful in your work, you can cite it as:</p>
 <blockquote>
-<p>Chi, Yuhan. “What Optimizer Lives Inside Linear Attention? Scale Symmetry and the CHI Loss.” November 22, 2026. <a href="https://yuhanchi.github.io/writing/optimizer-inside-linear-attention/">https://yuhanchi.github.io/writing/optimizer-inside-linear-attention/</a></p>
+<p>Chi, Yuhan. “What Optimizer Lives Inside Linear Attention? Scale Symmetry, Writing, and Forgetting.” November 22, 2026. <a href="https://yuhanchi.github.io/writing/optimizer-inside-linear-attention/">https://yuhanchi.github.io/writing/optimizer-inside-linear-attention/</a></p>
 </blockquote>
 <p>To cite this post, use the following BibTeX entry:</p>
 {% raw %}<pre><code class="language-bibtex">@misc{chi2026optimizer,
   author = {Chi, Yuhan},
-  title = {{What Optimizer Lives Inside Linear Attention? Scale Symmetry and the CHI Loss}},
+  title = {{What Optimizer Lives Inside Linear Attention? Scale Symmetry, Writing, and Forgetting}},
   year = {2026},
   month = nov,
   howpublished = {Blog post},
