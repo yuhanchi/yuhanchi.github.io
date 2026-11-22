@@ -51,6 +51,8 @@ $$
 
 下文会用到几个记号：键的二阶矩 $$\Sigma = \mathbb{E}[k k^\top] \succ 0$$，键值互相关 $$C = \mathbb{E}[v k^\top]$$，最小二乘最优解 $$P^* = C \Sigma^{-1}$$，旧预测 $$p_t = S_t k_t$$，以及矩阵 Frobenius 归一化算子 $$N_F(X) = X / \|X\|_F$$。
 
+全文用 $$S_t$$ 表示原状态，$$r_t = \|S_t\|_F$$ 表示其范数，$$U_t = N_F(S_t)$$ 表示单位范数方向（仅在 $$S_t \ne 0$$ 时定义）；$$P_t = c_t S_t$$ 专指校准后的有效状态，$$Q_t$$ 专指移除标量门后的辅助坐标，不表示单位范数状态。
+
 ---
 
 ## 2. $$q$$ 和 $$k$$ 的关系
@@ -67,7 +69,7 @@ $$
 \min_S \;\; \mathbb{E}\,\|S k - v\|_2^2. \tag{2}
 $$
 
-而对于一对 $$(q, o)$$（这里 $$o$$ 既代表 *oracle* 又代表 *output*，笑），我们真正关心的其实是输出**有没有指对方向**——因为紧接着发生在 $$o_t$$ 身上的第一件事就是 RMSNorm，它会直接把长度扔掉：
+而对于一对 $$(q, o^\star)$$（这里 $$o$$ 既代表 *oracle* 又代表 *output*，笑），我们真正关心的其实是输出**有没有指对方向**——因为紧接着发生在 $$o_t$$ 身上的第一件事就是 RMSNorm，它会直接把长度扔掉：
 
 $$
 \max_S \;\; \mathrm{sim}(S q,\; o^\star). \tag{3}
@@ -79,15 +81,14 @@ $$
 - 归一化距离：$$\min\; \|\mathrm{RMSNorm}(S q) - \mathrm{RMSNorm}(o^\star)\|_2^2$$；
 - 或者任何只依赖于射线 $$\{a\, S q : a > 0\}$$ 的目标函数。
 
-假设我们达成了式 (2)，并且也认同 $$(q, o)$$ 在某种意义上就是另一组 $$(k, v)$$（即理想读出满足 $$o^\star = P^* q$$），那么把式 (2) 训好，自然会推导出式 (3)。
+假设我们达成了式 (2)，并且也认同 $$(q, o^\star)$$ 在某种意义上就是另一组 $$(k, v)$$（注意到 $$k$$ 和 $$q$$ 都事先经过了normalized，进一步地，在理想情况下满足 $$o^\star = P^* q$$），那么把式 (2) 训好，自然会推导出式 (3)。
 
 反过来呢？式 (2) 显然太强了：式 (3) 根本不在乎输出乘上任何正标量。直觉上，每个查询似乎都可以接受各自不同的缩放因子。但这并不意味着我们没法从式 (3) 往回推。
 
-> **旁注（假设 2 其实是白送的）。** 因为 $$o_t = S_{t+1} q_t$$ 关于 $$q_t$$ 是线性的，而理想 RMSNorm（$$\varepsilon \to 0$$）对任意 $$a > 0$$ 满足 $$\mathrm{RMSNorm}(a\, o) = \mathrm{RMSNorm}(o)$$，所以给 $$q$$ 做归一化只是把 $$o$$ 乘上了一个正标量，紧接着就被 RMSNorm 吃掉了。在理想输出归一化下，对 $$q$$ 做归一化在前向和反向传播中都是冗余的。相比之下，对 $$k$$ 做归一化完全是另一回事，我们马上就会看到。
 
 ---
 
-## 3. 一个引理：你只拥有一个全局尺度
+## 3. 一个简单的高等代数里的引理：我们其实只拥有一个全局尺度
 
 每条记忆真的能各自挑一个尺度吗？给一个两秒钟的反例。取两个正交的键 $$k_1 \perp k_2$$，把它们按不同倍数存进记忆：
 
@@ -122,13 +123,15 @@ $$
 
 这三个词刚好一一对应式 (5) 的结构：$$c$$ 负责把 $$S k$$ 和 $$v$$ 的全局尺度**校准**对齐；$$(S, c)$$ 天然构成一个**齐次**尺度族（消去 $$c$$ 之后关于 $$S$$ 也是 0 次齐次的）；而读出端在射线 $$\{a S : a > 0\}$$ 上又是尺度**不变**的。
 
-这里我先把话说透，因为这正是整篇文章的核心。如果只看**解集**，式 (5) 并没有什么新鲜的：做个代换 $$P = c S$$，它就是普通的最小二乘。CHI loss 真正增加的东西是**几何**——它把读出层唯一不在乎的那个方向（全局尺度）显式地写成了变量。而一旦一种对称性变成了显式变量，我们就获得了决定权：可以自己决定优化器该如何对待它。
+这正是整篇文章的核心。如果只看**解集**，式 (5) 并没有什么新鲜的：做个代换 $$P = c S$$，它就是普通的最小二乘。CHI loss 真正增加的东西是**几何**——它把读出层唯一不在乎的那个方向（全局尺度）显式地写成了变量。而一旦一种对称性变成了显式变量，我们就获得了决定权：可以自己决定优化器该如何对待它。
 
 ---
 
 ## 4. CHI Loss 的四个好性质
 
 式 (5) 这个目标函数的性质非常漂亮：
+
+沿用第 1 节的记号，式 (2) 的最优解为 $$P^* = C \Sigma^{-1}$$；固定 $$c$$ 时，CHI loss 关于 $$S$$ 的最优解则记为 $$S^*(c)$$。
 
 1. **固定任意 $$c$$，它就是普通回归。** 当 $$c > 0$$ 固定时，$$F(\cdot, c)$$ 是关于 $$S$$ 的强凸二次函数，唯一最优解为 $$S^*(c) = P^* / c$$。
 2. **它天然是一个尺度族。** 对任意 $$a > 0$$ 都有 $$F(a S,\; c / a) = F(S, c)$$。无论固定哪个 $$c$$，最优解彼此之间都只差一个缩放系数，全部落在同一条射线 $$\{a P^* : a > 0\}$$ 上。
@@ -179,6 +182,8 @@ $$
 
 最直觉的做法，是把 $$c \equiv 1$$ 写死，并且不对 $$\|S_t\|_F$$ 加任何约束。这就是式 (1) 里原版的 DeltaNet。
 
+这个其实就很好理解：就好比我从上帝视角，提前知道了我所有会输入的(k,v)pair，了然于心后直接给出了一个 oracle： 我的最优的c 就会是多少。 同时我们知道，c是多少，对于矩阵S来讲也就只是进行了一个矩阵的缩放而已，从而，我们不妨就预先写死c为这个我们假定的oracle，容易想到，最后的S也会收敛到对应的 P*/c。
+
 此时式 (7) 里的径向力并没有白费，它顺手承担了“校准长度”的工作：状态太短就拉长，太长就压短，最后停在最优射线上唯一满足式 (8) 中 $$c^*(S) = 1$$ 的点，也就是 $$S = P^*$$（随手验算：$$c^*(P^*) = \operatorname{tr}(P^* \Sigma P^{*\top}) / \operatorname{tr}(P^* \Sigma P^{*\top}) = 1$$）。
 
 ### 为什么 $$k$$ 必须归一化
@@ -209,13 +214,13 @@ $$
 <details markdown="1">
 <summary>展开查看：从物理尺度与正交协变性导出 NLMS 与一步牛顿曲率</summary>
 
-剥离掉外层投影矩阵，暂时保留未归一化的非零键 $$k_t$$ 且不加遗忘（$$\alpha_t = 1$$）。记 $$e_t \triangleq S_t k_t - v_t$$ 与梯度 $$G_t \triangleq \nabla_S \ell_t(S_t) = e_t k_t^\top$$。给数据套上一组等价的物理单位与正交坐标变换：$$k_t' = a U k_t$$、$$v_t' = b V v_t$$（其中 $$a, b > 0$$，$$U \in O(d_k),\; V \in O(d_v)$$）。为使预测目标 $$S_t' k_t' = v_t'$$ 保持物理一致，状态矩阵必须按 $$S_t' = \frac{b}{a} V S_t U^\top$$ 变换。此时 $$e_t' = b V e_t$$，而梯度却变成：
+剥离掉外层投影矩阵，暂时保留未归一化的非零键 $$k_t$$ 且不加遗忘（$$\alpha_t = 1$$）。记 $$e_t \triangleq S_t k_t - v_t$$ 与梯度 $$G_t \triangleq \nabla_S \ell_t(S_t) = e_t k_t^\top$$。给数据套上一组等价的物理单位与正交坐标变换：$$k_t' = a R_k k_t$$、$$v_t' = b R_v v_t$$（其中 $$a, b > 0$$，$$R_k \in O(d_k),\; R_v \in O(d_v)$$）。为使预测目标 $$S_t' k_t' = v_t'$$ 保持物理一致，状态矩阵必须按 $$S_t' = \frac{b}{a} R_v S_t R_k^\top$$ 变换。此时 $$e_t' = b R_v e_t$$，而梯度却变成：
 
 $$
-G_t' = (S_t' k_t' - v_t')(k_t')^\top = a b\, V G_t U^\top.
+G_t' = (S_t' k_t' - v_t')(k_t')^\top = a b\, R_v G_t R_k^\top.
 $$
 
-状态和梯度的量纲差了一个 $$a^2$$ 因子。要求更新增量 $$\Delta S = \phi(S, k, v)$$ 满足协变方程 $$\phi(\frac{b}{a} V S U^\top, a U k, b V v) = \frac{b}{a} V \phi(S, k, v) U^\top$$，取 $$U = I, V = I, a = 1/\|k\|_2, b = 1/\|v\|_2$$ 得：
+状态和梯度的量纲差了一个 $$a^2$$ 因子。要求更新增量 $$\Delta S = \phi(S, k, v)$$ 满足协变方程 $$\phi(\frac{b}{a} R_v S R_k^\top, a R_k k, b R_v v) = \frac{b}{a} R_v \phi(S, k, v) R_k^\top$$，取 $$R_k = I, R_v = I, a = 1/\|k\|_2, b = 1/\|v\|_2$$ 得：
 
 $$
 \phi(S, k, v) = \frac{\|v\|_2}{\|k\|_2}\, F\!\left(\frac{\|k\|_2}{\|v\|_2} S,\; \hat{k},\; \hat{v}\right).
@@ -267,11 +272,11 @@ $$
 
 但严格说来，$$\rho_t$$ 依然**不是**角向的有效学习率。要把方向究竟转了多少算清楚，必须先把**整个残差更新**正交分解到球面在 $$U_t$$ 处的切空间上。
 
-在 $$r_t > 0$$、$$\|k_t\|_2 = 1$$ 时，记 $$u_t = U_t k_t$$，归一化后的残差 $$e_t = u_t - v_t / (\alpha_t r_t)$$，以及 $$H_t = e_t k_t^\top$$，于是式 (11) 括号里就是 $$U_t - \beta_t H_t$$。用 Frobenius 内积做正交分解：
+在 $$r_t > 0$$、$$\|k_t\|_2 = 1$$ 时，记 $$\hat{p}_t = U_t k_t$$，归一化后的残差 $$\hat{e}_t = \hat{p}_t - v_t / (\alpha_t r_t)$$，以及 $$H_t = \hat{e}_t k_t^\top$$，于是式 (11) 括号里就是 $$U_t - \beta_t H_t$$。用 Frobenius 内积做正交分解：
 
 $$
 \begin{aligned}
-\xi_t &\triangleq \langle U_t, H_t \rangle_F = u_t^\top e_t, \qquad H_t^\perp \triangleq H_t - \xi_t U_t, \\
+\xi_t &\triangleq \langle U_t, H_t \rangle_F = \hat{p}_t^\top \hat{e}_t, \qquad H_t^\perp \triangleq H_t - \xi_t U_t, \\
 U_t - \beta_t H_t &= (1 - \beta_t \xi_t) U_t - \beta_t H_t^\perp, \qquad \langle U_t, H_t^\perp \rangle_F = 0.
 \end{aligned} \tag{12}
 $$
@@ -280,13 +285,13 @@ $$
 
 $$
 U_{t+1} = N_F\!\left(U_t - \eta_t^{\mathrm{tan}} H_t^\perp\right), \qquad
-\boxed{\ \eta_t^{\mathrm{tan}} = \frac{\beta_t}{1 - \beta_t \xi_t} = \frac{\beta_t}{1 - \beta_t \|u_t\|_2^2 + \rho_t\, u_t^\top \hat{v}_t}\ } \tag{13}
+\boxed{\ \eta_t^{\mathrm{tan}} = \frac{\beta_t}{1 - \beta_t \xi_t} = \frac{\beta_t}{1 - \beta_t \|\hat{p}_t\|_2^2 + \rho_t\, \hat{p}_t^\top \hat{v}_t}\ } \tag{13}
 $$
 
 式 (13) 里的 $$\eta_t^{\mathrm{tan}}$$ 才是相对于 $$H_t^\perp$$ 的**切向有效步长**：擦除和写入的径向分量一起进了分母，切向分量一起留在 $$H_t^\perp$$ 里。当然，步长系数还不等于实际转角。记转角 $$\theta_t = \arccos\langle U_t, U_{t+1} \rangle_F$$，只要下一状态非零，就有：
 
 $$
-\|H_t^\perp\|_F^2 = \|e_t\|_2^2 - \xi_t^2, \qquad
+\|H_t^\perp\|_F^2 = \|\hat{e}_t\|_2^2 - \xi_t^2, \qquad
 \theta_t = \operatorname{atan2}\!\left(\beta_t \|H_t^\perp\|_F,\; 1 - \beta_t \xi_t\right). \tag{14}
 $$
 
@@ -294,15 +299,15 @@ $$
 
 ### 遗忘门其实是辅助尺度的调度表
 
-下面这个恒等式是整篇文章里我最喜欢的一个观察。还是固定前文的 $$c \equiv 1$$ 不放，只是把式 (10) 里 GDN 的实际状态改记为 $$P_t$$，然后另引入一条**辅助尺度** $$\lambda_0 = 1$$、$$\lambda_{t+1} = \alpha_t \lambda_t > 0$$，以及辅助状态 $$\widetilde{S}_t = P_t / \lambda_t$$。把式 (10) 两边同除以 $$\lambda_{t+1}$$，就得到一次精确的状态重参数化：
+下面这个恒等式是整篇文章里我最喜欢的一个观察。还是固定前文的 $$c \equiv 1$$ 不放，保留式 (10) 里 GDN 的实际状态记号 $$S_t$$，另引入一条**辅助尺度** $$\kappa_0 = 1$$、$$\kappa_{t+1} = \alpha_t \kappa_t > 0$$，以及辅助状态 $$Q_t = S_t / \kappa_t$$。把式 (10) 两边同除以 $$\kappa_{t+1}$$，就得到一次精确的状态重参数化：
 
 $$
-\widetilde{S}_{t+1} = \widetilde{S}_t (I - \beta_t k_t k_t^\top) + \frac{\beta_t}{\lambda_{t+1}}\, v_t k_t^\top
+Q_{t+1} = Q_t (I - \beta_t k_t k_t^\top) + \frac{\beta_t}{\kappa_{t+1}}\, v_t k_t^\top
 \quad\Longleftrightarrow\quad
-P_{t+1} = \frac{\lambda_{t+1}}{\lambda_t}\, P_t (I - \beta_t k_t k_t^\top) + \beta_t v_t k_t^\top, \qquad \frac{\lambda_{t+1}}{\lambda_t} = \alpha_t. \tag{15}
+S_{t+1} = \frac{\kappa_{t+1}}{\kappa_t}\, S_t (I - \beta_t k_t k_t^\top) + \beta_t v_t k_t^\top, \qquad \frac{\kappa_{t+1}}{\kappa_t} = \alpha_t. \tag{15}
 $$
 
-同一条 GDN 轨迹，换到式 (15) 左边的辅助坐标里看，就是“没有显式遗忘门，只是每次写入的幅值按时间表缩放”。这里要分清一件事：这只是一次坐标重参数化，并没有放开原本写死的 $$c \equiv 1$$。真实优化的仍然是 $$\frac{1}{2}\|P_t k_t - v_t\|_2^2 = \frac{1}{2}\|\lambda_t \widetilde{S}_t k_t - v_t\|_2^2$$，而且辅助更新里写入项用的是 $$\lambda_{t+1}$$ 而不是 $$\lambda_t$$，所以不能把式 (15) 直接当成在 $$F(\widetilde{S}, \lambda_t)$$ 上做普通 SGD。它提供的是遗忘门的一种尺度调度解释，而不是把遗忘门消除了，更不等同于下一节由残差驱动的校准。
+同一条 GDN 轨迹，换到式 (15) 左边的辅助坐标里看，就是“没有显式遗忘门，只是每次写入的幅值按时间表缩放”。这里要分清一件事：这只是一次坐标重参数化，并没有放开原本写死的 $$c \equiv 1$$。真实优化的仍然是 $$\frac{1}{2}\|S_t k_t - v_t\|_2^2 = \frac{1}{2}\|\kappa_t Q_t k_t - v_t\|_2^2$$，而且辅助更新里写入项用的是 $$\kappa_{t+1}$$ 而不是 $$\kappa_t$$，所以不能把式 (15) 直接当成在 $$F(Q, \kappa_t)$$ 上做普通 SGD。它提供的是遗忘门的一种尺度调度解释，而不是把遗忘门消除了，更不等同于下一节由残差驱动的校准。
 
 ### 收益与代价
 
@@ -345,7 +350,7 @@ $$
 
 （随手验算：$$\nabla_S \ell_t = c_t\, e_t k_t^\top$$，且 $$\partial_u \ell_t = c_t\,\partial_c \ell_t = z_t^\top e_t$$。）
 
-现在定义有效状态 $$P_t = c_t S_t$$ 和步间尺度比 $$a_t = c_{t+1} / c_t = \exp(-\gamma_t z_t^\top e_t)$$。把式 (17) 中 $$S$$ 的更新两边同乘 $$c_{t+1}$$，**$$S$$ 和 $$c$$ 就直接消去了，我们只需要维护一张矩阵：**
+现在使用第 1 节约定的有效状态 $$P_t = c_t S_t$$ 和步间尺度比 $$a_t = c_{t+1} / c_t = \exp(-\gamma_t z_t^\top e_t)$$。把式 (17) 中 $$S$$ 的更新两边同乘 $$c_{t+1}$$，**$$S$$ 和 $$c$$ 就直接消去了，我们只需要维护一张矩阵：**
 
 $$
 \boxed{\
@@ -471,45 +476,45 @@ $$
 
 ## 8. 一个公式，归结为一个旋钮
 
-现在，三条主线可以写进同一个统一更新式（键已单位化 $$\|k_t\|_2 = 1$$，记旧预测 $$p_t = S_t k_t$$）：
+现在，三条主线可以写进同一个统一更新式。为区分统一递推与各主线的坐标，以下用 $$M_t$$ 表示实际维护的状态：主线一、三中 $$M_t = S_t$$，主线二中 $$M_t = P_t = c_t S_t$$；相应的旧预测统一记为 $$m_t = M_t k_t$$（键已单位化 $$\|k_t\|_2 = 1$$）：
 
 $$
-\boxed{\ S_{t+1} = a_t\Big[\alpha_t S_t - \beta_t\big(\alpha_t p_t - \tilde{v}_t\big) k_t^\top\Big], \qquad o_t = S_{t+1} q_t \xrightarrow{\;\mathrm{RMSNorm}\;} y_t\ } \tag{26}
+\boxed{\ M_{t+1} = a_t\Big[\alpha_t M_t - \beta_t\big(\alpha_t m_t - \tilde{v}_t\big) k_t^\top\Big], \qquad o_t = M_{t+1} q_t \xrightarrow{\;\mathrm{RMSNorm}\;} y_t\ } \tag{26}
 $$
 
 式 (26) 里各个符号的分工一目了然：
 
 - 括号里面的 $$\alpha_t$$ 只乘在旧记忆上：它是**外生遗忘门**；
 - 括号外面的 $$a_t$$ 把旧记忆和新写入一起乘：它是**内生残差校准门**；
-- $$\tilde{v}_t$$ 是否带上正 1 次齐次因子 $$g(S_t)$$，决定了我们是否处在**齐次 / 校准球面世界**里。
+- $$\tilde{v}_t$$ 是否带上正 1 次齐次因子 $$g(M_t)$$，决定了我们是否处在**齐次 / 校准球面世界**里。
 
 | 主线 | $$(\alpha_t,\; a_t,\; \tilde{v}_t)$$ | 如何处理 $$c$$ | 优势 / 代价 |
 |---|---|---|---|
 | 1. 自由范数 GDN | $$\alpha_t \in (0, 1],\; a_t = 1,\; \tilde{v}_t = v_t$$ | 固定 $$c \equiv 1$$；遗忘门是辅助尺度的外生时间表 | 原生支持 WY 并行；存在近因岭偏置 $$\frac{1-\alpha}{\alpha\beta}$$ |
 | 2. 联合在线 SGD | $$\alpha_t = 1,\; a_t = e^{-\tilde{\gamma}_t z_t^\top e_t},\; \tilde{v}_t = v_t$$ | 每个 token 对 $$\log c$$ 走一步梯度 | 一步全局重校准；门依赖状态，需递推核（或按 chunk 冻结） |
-| 3. 齐次校准更新 | $$\alpha_t = 1,\; a_t = 1,\; \tilde{v}_t = g(S_t) v_t$$ | 用 $$c^*(S)$$ 消去 $$c$$ | 无需球面投影、无岭偏置；chunk 边界重缩放后兼容 WY |
+| 3. 齐次校准更新 | $$\alpha_t = 1,\; a_t = 1,\; \tilde{v}_t = g(M_t) v_t$$ | 用 $$c^*(M)$$ 消去 $$c$$ | 无需球面投影、无岭偏置；chunk 边界重缩放后兼容 WY |
 
 但我们还可以把这种统一再往前推一步——而这也正是整个视角最值回票价的地方。
 
-做一次坐标变换：令 $$S_t = \kappa_t Q_t$$，取 $$\kappa_0 = 1$$ 并按 $$\kappa_{t+1} = a_t \alpha_t \kappa_t$$ 递推。代回式 (26) 消去 $$\kappa_{t+1}$$，递推立刻化为：
+做一次坐标变换：令 $$M_t = \kappa_t Q_t$$，取 $$\kappa_0 = 1$$ 并按 $$\kappa_{t+1} = a_t \alpha_t \kappa_t$$ 递推。代回式 (26) 消去 $$\kappa_{t+1}$$，递推立刻化为：
 
 $$
 \boxed{\ Q_{t+1} = Q_t (I - \beta_t k_t k_t^\top) + \beta_t\, \frac{\tilde{v}_t}{\alpha_t \kappa_t}\, k_t^\top\ } \tag{27}
 $$
 
-因为每一步都有 $$Q_t \propto S_t$$，**穿过理想 RMSNorm 之后的读出完全不变。** 也就是说，在理想输出归一化下，整个家族里的每一个成员，本质上全都是**不带遗忘门的普通 DeltaNet，只是给每个 token 的目标值套上了一个标量尺度 $$v_t / c_t$$**。三条主线的全部区别，仅仅在于它们怎样选取式 (27) 里的这唯一一条标量序列 $$c_t$$（在主线一里对应有效分母 $$\alpha_t \kappa_t = \kappa_{t+1}$$，在主线二里对应对数空间学出来的 $$c_t$$）：
+因为每一步都有 $$Q_t \propto M_t$$，**穿过理想 RMSNorm 之后的读出完全不变。** 也就是说，在理想输出归一化下，整个家族里的每一个成员，本质上全都是**不带遗忘门的普通 DeltaNet，只是给每个 token 的目标值套上了一个标量尺度 $$v_t / d_t$$**。三条主线的全部区别，仅仅在于它们怎样选取式 (27) 里的这唯一一条标量序列 $$d_t$$。具体地，若 $$\tilde{v}_t = h_t v_t$$，则 $$d_t = \alpha_t \kappa_t / h_t$$；它是辅助坐标里的有效分母，与 CHI loss 的校准变量 $$c_t$$ 区分开来（下表对主线二取 $$c_0 = 1$$）：
 
-| 如何选取 $$c_t$$ | 对应的算法 |
+| 有效分母 $$d_t$$ 的取法 | 对应的算法 |
 |---|---|
-| $$c_t \equiv 1$$ | DeltaNet |
-| $$c_t = \prod_{s \le t} \alpha_s$$（外生、依赖输入） | Gated DeltaNet |
-| 对 $$\log c_t$$ 朝 $$c^*$$ 走一步在线 SGD | 主线二（Joint SGD） |
-| 精确取最优响应 $$c_t = c^*(S_t)$$ | 主线三（总体理想校准） |
-| $$c^*(S_t)$$ 的单步正交或 EMA 在线估计 | 主线三（实用在线校准） |
+| $$d_t \equiv 1$$ | DeltaNet |
+| $$d_t = \prod_{0 \le s \le t} \alpha_s$$（外生、依赖输入） | Gated DeltaNet |
+| $$d_t = c_t$$，其中对 $$\log c_t$$ 朝 $$c^*$$ 走一步在线 SGD | 主线二（Joint SGD） |
+| $$d_t = c^*(M_t)$$（精确最优响应） | 主线三（总体理想校准） |
+| $$d_t$$ 取 $$c^*(M_t)$$ 的单步正交或 EMA 在线估计 | 主线三（实用在线校准） |
 
 （在数值实现上你当然不会直接跑式 (27) 的 $$Q$$ 坐标系，因为 $$\prod \alpha_s^{-1}$$ 会指数爆炸——这也正是工程实现里一定要写成式 (26) 门控形式的原因。但作为**思考工具**，这个等价关系是完全精确的。）
 
-式 (27) 甚至用一句话就解释了硬件并行性：**当且仅当 $$c_t$$ 在 chunk 开始之前就已知时，chunkwise WY 并行才成立。** 外生的 $$c_t$$（DeltaNet / GDN）没问题；依赖状态的 $$c_t$$（主线二和主线三）不行，除非你在每个 chunk 内把 $$c_t$$ 冻结成常数。
+式 (27) 甚至用一句话就解释了硬件并行性：**当且仅当 $$d_t$$ 在 chunk 开始之前就已知时，chunkwise WY 并行才成立。** 外生的 $$d_t$$（DeltaNet / GDN）没问题；依赖状态的 $$d_t$$（主线二和主线三）不行，除非你在每个 chunk 内把 $$d_t$$ 冻结成常数。
 
 现在可以回答开篇的问题了：**线性注意力内部的优化器，就是 CHI loss（式 (5)）上的在线 SGD；而它的整个设计空间，很大程度上就是在回答——我们该如何对待 RMSNorm 制造出来的这条尺度对称性。** 固定它、学出它，或者消去它。
 
@@ -520,34 +525,35 @@ $$
 ```python
 import torch
 
-# Shapes: S [B, H, dv, dk]; q, k [B, H, dk] (k unit-norm, q un-normalized); v [B, H, dv]
-def linear_attention_step(S, q, k, v, beta, mode="gdn", alpha=1.0,
+# M = S in mainlines 1/3; M = P = c*S in mainline 2 (Eq. 26).
+# Shapes: M [B, H, dv, dk]; q, k [B, H, dk] (k unit-norm, q un-normalized); v [B, H, dv]
+def linear_attention_step(M, q, k, v, beta, mode="gdn", alpha=1.0,
                           gamma0=0.1, delta_max=0.5, g=None, eps=1e-6):
-    p = torch.einsum("bhvk,bhk->bhv", S, k)                    # old prediction S_t k_t
+    m = torch.einsum("bhvk,bhk->bhv", M, k)                    # old prediction M_t k_t
 
     if mode == "gdn":            # Mainline 1: fix c=1, exogenous gate
-        e = alpha * p - v
-        S_next = alpha * S - (beta * e).unsqueeze(-1) * k.unsqueeze(-2)
+        e = alpha * m - v
+        M_next = alpha * M - (beta * e).unsqueeze(-1) * k.unsqueeze(-2)
 
     elif mode == "joint_sgd":    # Mainline 2: learn log c, two-sided gate a_t
-        e = p - v
-        pe = (p * e).sum(-1, keepdim=True)
-        curv = (p * p).sum(-1, keepdim=True) + (v * v).sum(-1, keepdim=True) + eps
-        a = torch.exp((-gamma0 * pe / curv).clamp(-delta_max, delta_max))
-        S_next = a.unsqueeze(-1) * (S - (beta * e).unsqueeze(-1) * k.unsqueeze(-2))
+        e = m - v
+        me = (m * e).sum(-1, keepdim=True)
+        curv = (m * m).sum(-1, keepdim=True) + (v * v).sum(-1, keepdim=True) + eps
+        a = torch.exp((-gamma0 * me / curv).clamp(-delta_max, delta_max))
+        M_next = a.unsqueeze(-1) * (M - (beta * e).unsqueeze(-1) * k.unsqueeze(-2))
 
-    else:                        # Mainline 3: eliminate c, target g(S_t) v_t
+    else:                        # Mainline 3: eliminate c, target g(M_t) v_t
         if g is None:            # single-token estimate 1/c* (pass a smoothed EMA g in practice)
-            pv = (p * v).sum(-1, keepdim=True)
-            pp = (p * p).sum(-1, keepdim=True)
-            g = torch.where(pv > eps, pp / pv.clamp_min(eps), torch.ones_like(pv))
-        e = p - g * v
-        S_next = S - (beta * e).unsqueeze(-1) * k.unsqueeze(-2)
-        # S=0 is a fixed point of a homogeneous map: seed with v_0 k_0^T.
+            mv = (m * v).sum(-1, keepdim=True)
+            mm = (m * m).sum(-1, keepdim=True)
+            g = torch.where(mv > eps, mm / mv.clamp_min(eps), torch.ones_like(mv))
+        e = m - g * v
+        M_next = M - (beta * e).unsqueeze(-1) * k.unsqueeze(-2)
+        # M=0 is a fixed point of a homogeneous map: seed with v_0 k_0^T.
         # Rescale by a scalar occasionally to avoid overflow; directions are unaffected.
 
-    o = torch.einsum("bhvk,bhk->bhv", S_next, q)               # -> RMSNorm(o) * SiLU(gate)
-    return S_next, o
+    o = torch.einsum("bhvk,bhk->bhv", M_next, q)               # -> RMSNorm(o) * SiLU(gate)
+    return M_next, o
 ```
 
 ---
