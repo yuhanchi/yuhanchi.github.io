@@ -16,7 +16,7 @@ Plain Jekyll on GitHub Pages (no plugins), design: **Scholar**.
 - **Bio** — `_includes/about.md`
 - **Publications, experience, projects, talks, service, honors, links** — `_data/profile.yml`
 - **CV** — `_includes/cv.md` (and replace `files/Yuhan_Chi_CV.pdf`)
-- **Photo** — `assets/img/yuhan.jpg` (rectangular, 3:4)
+- **Images** — site-wide images live in `assets/img/` (e.g., `yuhan.jpg`, `wechat-qr.png`); post-specific figures live in `assets/img/posts/<slug>/` using lowercase kebab-case filenames.
 - **Look** — `assets/css/scholar.css` (palette, fonts, photo size via `--photo-w`); shared spacing and components in `assets/css/base.css`
 
 ## Writing a post

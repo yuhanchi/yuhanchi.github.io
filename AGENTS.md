@@ -122,7 +122,8 @@ unless a redesign is requested; reuse existing components and styles.
 - `_data/profile.yml`: profile information, publications, experience, projects,
   talks, service, honors, and links.
 - `_includes/cv.md` and `files/Yuhan_Chi_CV.pdf`: CV page and downloadable CV.
-- `assets/img/yuhan.jpg`: rectangular 3:4 profile photo, shown on About.
+- `assets/img/yuhan.jpg` and `assets/img/wechat-qr.png`: site-wide images (3:4 profile photo on About and WeChat QR code).
+- `assets/img/posts/<slug>/`: per-post images, figures, and `preview_image` assets, grouped by post slug.
 - `_posts/YYYY-MM-DD-slug.md`: blog content (canonical English posts).
 - `_zh/<slug>.md`: optional Chinese translation of a post, sharing the exact same `slug` as `_posts/YYYY-MM-DD-<slug>.md` (set `slug: "<slug>"` and `date: "YYYY-MM-DD"` in front matter). Configured as a Jekyll collection in `_config.yml` outputting to `/writing/<slug>/zh/`, so it does not duplicate entries on the main Writing index or RSS feed.
 - `_includes/k/post.html`: post header (including the per-article `EN / 中文` switcher in `.post-topbar` when a matching `_zh/<slug>.md` exists), byline, body, and navigation.
@@ -130,6 +131,16 @@ unless a redesign is requested; reuse existing components and styles.
 - `assets/css/scholar.css`: design-specific appearance.
 - `assets/css/base.css`: shared spacing and components, including details boxes.
 - `_config.yml`: URLs, Markdown settings, defaults, and exclusions.
+
+## Asset and image storage
+
+Keep `assets/` organized by scope so images do not accumulate flat in a single directory:
+
+- `assets/css/`: site stylesheets (`base.css`, `scholar.css`).
+- `assets/img/`: site-wide images only (such as `yuhan.jpg` and `wechat-qr.png`). Do not place post figures directly in `assets/img/` or `assets/img/posts/`.
+- `assets/img/posts/<slug>/`: all figures, plots, tables, and `preview_image` files for a post, stored in a subdirectory matching the exact `<slug>` of `_posts/YYYY-MM-DD-<slug>.md` (and shared by `_zh/<slug>.md` when a Chinese translation exists).
+- **File naming**: use lowercase kebab-case (e.g., `vae-correspondence.png`, `sundial-fig2.png`); avoid spaces and underscores. When both raster and vector versions exist, keep the `.png` and `.svg` pair in the same `<slug>/` directory with matching basenames.
+- **Referencing**: use `{{ '/assets/img/posts/<slug>/<file>' | relative_url }}` inside post bodies, and `"/assets/img/posts/<slug>/<file>"` for `preview_image` in front matter.
 
 ## Post format and visibility
 

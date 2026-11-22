@@ -5,7 +5,7 @@ description: "Notes on how Chronos-2 turns time series into tokens for universal
 category: "tech"
 tags: ["AI", "time-series"]
 math: true
-preview_image: "/assets/img/posts/chronos2.webp"
+preview_image: "/assets/img/posts/time-series-as-tokens/chronos2.webp"
 preview_alt: "The complete Chronos-2 pipeline: robust scaling, tokenization, alternating time and group attention, and quantile forecasting."
 ---
 [Chronos-2](https://arxiv.org/abs/2510.15821) ([GitHub code](https://github.com/amazon-science/chronos-forecasting), [Hugging Face weights](https://huggingface.co/amazon/chronos-2)) is a foundation model that turns time series into tokens and models them much like text. This is the first paper I have read in this field.
@@ -97,7 +97,7 @@ Instead of quantizing each scalar time step into a discrete vocabulary bin (as t
 ## 3. Architecture and Code Walkthrough
 
 <figure>
-  <a href="{{ '/assets/img/posts/chronos2.webp' | relative_url }}" title="Open full size"><img src="{{ '/assets/img/posts/chronos2.webp' | relative_url }}" alt="The complete Chronos-2 pipeline: input series undergo robust scaling, meta-feature concatenation, patching, and patch embedding, then pass through N transformer blocks alternating Time Attention and Group Attention, and finally a quantile head and unscaling." width="1748" height="723" loading="lazy"></a>
+  <a href="{{ '/assets/img/posts/time-series-as-tokens/chronos2.webp' | relative_url }}" title="Open full size"><img src="{{ '/assets/img/posts/time-series-as-tokens/chronos2.webp' | relative_url }}" alt="The complete Chronos-2 pipeline: input series undergo robust scaling, meta-feature concatenation, patching, and patch embedding, then pass through N transformer blocks alternating Time Attention and Group Attention, and finally a quantile head and unscaling." width="1748" height="723" loading="lazy"></a>
   <figcaption><strong>Figure 1.</strong> The Chronos-2 pipeline: scaling, patch embedding, alternating time and group attention, quantile prediction, and unscaling (from <a href="https://arxiv.org/abs/2510.15821">Ansari et al., 2025</a>).</figcaption>
 </figure>
 
@@ -406,9 +406,9 @@ Chronos-2's solution is striking: **its multivariate and covariate-informed capa
 
 <figure id="figure-8">
   <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 1rem;">
-    <img src="{{ '/assets/img/posts/chronos2-model-size-skill.svg' | relative_url }}" alt="Skill scores comparing the 120M and 28M Chronos-2 models across three benchmarks." loading="lazy">
-    <img src="{{ '/assets/img/posts/chronos2-synth-only-skill.svg' | relative_url }}" alt="Skill scores comparing Chronos-2 with a model trained only on synthetic data." loading="lazy">
-    <img src="{{ '/assets/img/posts/chronos2-long-context-skill.svg' | relative_url }}" alt="Skill scores comparing Chronos-2 before and after long-context post-training." loading="lazy">
+    <img src="{{ '/assets/img/posts/time-series-as-tokens/chronos2-model-size-skill.svg' | relative_url }}" alt="Skill scores comparing the 120M and 28M Chronos-2 models across three benchmarks." loading="lazy">
+    <img src="{{ '/assets/img/posts/time-series-as-tokens/chronos2-synth-only-skill.svg' | relative_url }}" alt="Skill scores comparing Chronos-2 with a model trained only on synthetic data." loading="lazy">
+    <img src="{{ '/assets/img/posts/time-series-as-tokens/chronos2-long-context-skill.svg' | relative_url }}" alt="Skill scores comparing Chronos-2 before and after long-context post-training." loading="lazy">
   </div>
   <figcaption><strong>Figure 8 from the paper.</strong> Ablations on model size, synthetic-only training, and long-context post-training (from <a href="https://arxiv.org/html/2510.15821v1#S5.F8">Ansari et al., 2025</a>).</figcaption>
 </figure>

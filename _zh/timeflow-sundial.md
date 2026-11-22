@@ -6,7 +6,7 @@ description: "拆解 Sundial 的 TimeFlow 输出头：为什么它的 Flow Match
 category: "tech"
 tags: ["AI", "time-series"]
 math: true
-preview_image: "/assets/img/posts/sundial-fig2.png"
+preview_image: "/assets/img/posts/timeflow-sundial/sundial-fig2.png"
 preview_alt: "Sundial 整体架构（Figure 2）：连续 Patch 分词、因果 Transformer 底座以及 TimeFlow Loss 输出头。"
 ---
 之前在小红书发完 [Chronos-2]({% post_url 2026-11-06-time-series-as-tokens %}) 的笔记后，有读者在评论区推荐了 [Sundial](https://arxiv.org/abs/2502.00816)（*Sundial: A Family of Highly Capable Time Series Foundation Models*，ICML 2025），用来回应我[上篇文章最后留下的那个问题]({% post_url 2026-11-06-time-series-as-tokens %}#6-possibly-open-questions)：能不能像分布强化学习那样，用 Flow Matching 头代替分位数头来建模预测分布？
@@ -14,7 +14,7 @@ preview_alt: "Sundial 整体架构（Figure 2）：连续 Patch 分词、因果 
 乍一看，Sundial 的卖点很厉害：一个原生的、直接input连续值、Decoder-only 的时间序列基础模型，在万亿级时间点（`TimeBench`）上预训练，用基于 Flow Matching 的 **TimeFlow Loss** 替代离散分词和参数化先验分布。
 
 <figure>
-  <a href="{{ '/assets/img/posts/sundial-fig2.png' | relative_url }}" title="Open full size"><img src="{{ '/assets/img/posts/sundial-fig2.png' | relative_url }}" alt="Sundial 整体架构（Figure 2）：连续 Patch 分词、Pre-LN 因果 Transformer 底座与 TimeFlow Loss 输出头。" width="2057" height="596" loading="lazy"></a>
+  <a href="{{ '/assets/img/posts/timeflow-sundial/sundial-fig2.png' | relative_url }}" title="Open full size"><img src="{{ '/assets/img/posts/timeflow-sundial/sundial-fig2.png' | relative_url }}" alt="Sundial 整体架构（Figure 2）：连续 Patch 分词、Pre-LN 因果 Transformer 底座与 TimeFlow Loss 输出头。" width="2057" height="596" loading="lazy"></a>
   <figcaption>Sundial 原文 Figure 2：连续 Patch 分词、带 RoPE 的 Pre-LN 因果 Transformer，以及 TimeFlow Loss 输出头。</figcaption>
 </figure>
 
@@ -51,7 +51,7 @@ $$
 如果 TimeFlow 真的有那么关键，把它换成最土的 MSE 头，效果应该掉一大截才对。但看原文 **Table 3**（相同底座和 1T `TimeBench` 预训练，在 TSLib 上测零样本 MSE）：
 
 <figure>
-  <a href="{{ '/assets/img/posts/sundial-table3.png' | relative_url }}" title="Open full size"><img src="{{ '/assets/img/posts/sundial-table3.png' | relative_url }}" alt="Sundial 原文 Table 3：TimeFlow、Diffusion 与普通 MSE 在 ETTm1、ETTm2、ETTh1、ETTh2、ECL、Weather 上的零样本 MSE 对比。" width="1010" height="420" loading="lazy"></a>
+  <a href="{{ '/assets/img/posts/timeflow-sundial/sundial-table3.png' | relative_url }}" title="Open full size"><img src="{{ '/assets/img/posts/timeflow-sundial/sundial-table3.png' | relative_url }}" alt="Sundial 原文 Table 3：TimeFlow、Diffusion 与普通 MSE 在 ETTm1、ETTm2、ETTh1、ETTh2、ECL、Weather 上的零样本 MSE 对比。" width="1010" height="420" loading="lazy"></a>
   <figcaption>Sundial 原文 Table 3：同底座同数据规模下，TimeFlow、Diffusion 与纯 MSE 的零样本 MSE 对比。</figcaption>
 </figure>
 
@@ -61,7 +61,7 @@ $$
 更耐人寻味的是 **Table 7**（同样六个数据集加上 GIFT-Eval 的零样本 CRPS）：
 
 <figure>
-  <a href="{{ '/assets/img/posts/sundial-table7.png' | relative_url }}" title="Open full size"><img src="{{ '/assets/img/posts/sundial-table7.png' | relative_url }}" alt="Sundial 原文 Table 7：TimeFlow Loss、Diffusion Loss 与 MSE Loss 在六个 TSLib 数据集及 GIFT-Eval 上的零样本 CRPS 对比。" width="2054" height="372" loading="lazy"></a>
+  <a href="{{ '/assets/img/posts/timeflow-sundial/sundial-table7.png' | relative_url }}" title="Open full size"><img src="{{ '/assets/img/posts/timeflow-sundial/sundial-table7.png' | relative_url }}" alt="Sundial 原文 Table 7：TimeFlow Loss、Diffusion Loss 与 MSE Loss 在六个 TSLib 数据集及 GIFT-Eval 上的零样本 CRPS 对比。" width="2054" height="372" loading="lazy"></a>
   <figcaption>Sundial 原文 Table 7：TimeFlow Loss、Diffusion Loss 与 MSE Loss 的零样本 CRPS 对比。</figcaption>
 </figure>
 

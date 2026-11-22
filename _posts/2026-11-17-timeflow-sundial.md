@@ -6,13 +6,13 @@ category: "tech"
 tags: ["AI", "time-series"]
 math: true
 published: true
-preview_image: "/assets/img/posts/sundial-fig2.png"
+preview_image: "/assets/img/posts/timeflow-sundial/sundial-fig2.png"
 preview_alt: "Overall architecture of Sundial (Figure 2): continuous patch tokenization, causal Transformer backbone, and the TimeFlow Loss flow-matching head."
 ---
 After posting [Chronos-2]({% post_url 2026-11-06-time-series-as-tokens %}) on Xiaohongshu, a reader commented and recommended [Sundial](https://arxiv.org/abs/2502.00816) (*Sundial: A Family of Highly Capable Time Series Foundation Models*, ICML 2025) in response to my [open question on flow-matching heads]({% post_url 2026-11-06-time-series-as-tokens %}#6-possibly-open-questions). On the surface, Sundial's pitch is appealing: a native, continuous-valued, decoder-only time-series foundation model pre-trained on a trillion time points (`TimeBench`), replacing discrete tokenization and parametric priors with a generative **TimeFlow Loss** based on flow matching.
 
 <figure>
-  <a href="{{ '/assets/img/posts/sundial-fig2.png' | relative_url }}" title="Open full size"><img src="{{ '/assets/img/posts/sundial-fig2.png' | relative_url }}" alt="Overall architecture of Sundial (Figure 2): continuous patch tokenization, causal Transformer backbone, and the TimeFlow Loss flow-matching head." width="2057" height="596" loading="lazy"></a>
+  <a href="{{ '/assets/img/posts/timeflow-sundial/sundial-fig2.png' | relative_url }}" title="Open full size"><img src="{{ '/assets/img/posts/timeflow-sundial/sundial-fig2.png' | relative_url }}" alt="Overall architecture of Sundial (Figure 2): continuous patch tokenization, causal Transformer backbone, and the TimeFlow Loss flow-matching head." width="2057" height="596" loading="lazy"></a>
   <figcaption>Figure 2 from the Sundial paper: continuous patch tokenization, a Pre-LN causal Transformer with RoPE, and the TimeFlow Loss flow-matching head.</figcaption>
 </figure>
 
@@ -47,7 +47,7 @@ Even when predicting $$F = 720$$ future steps at once, `FM-Net` is just a 3-to-6
 If TimeFlow were doing something transformative, replacing it with a plain MSE head should hurt performance substantially. Look at **Table 3** (TSLib zero-shot MSE, same backbone and 1T `TimeBench` pre-training):
 
 <figure>
-  <a href="{{ '/assets/img/posts/sundial-table3.png' | relative_url }}" title="Open full size"><img src="{{ '/assets/img/posts/sundial-table3.png' | relative_url }}" alt="Table 3 from Sundial: zero-shot MSE across ETTm1, ETTm2, ETTh1, ETTh2, ECL, and Weather comparing TimeFlow, Diffusion, and MSE." width="1010" height="420" loading="lazy"></a>
+  <a href="{{ '/assets/img/posts/timeflow-sundial/sundial-table3.png' | relative_url }}" title="Open full size"><img src="{{ '/assets/img/posts/timeflow-sundial/sundial-table3.png' | relative_url }}" alt="Table 3 from Sundial: zero-shot MSE across ETTm1, ETTm2, ETTh1, ETTh2, ECL, and Weather comparing TimeFlow, Diffusion, and MSE." width="1010" height="420" loading="lazy"></a>
   <figcaption>Table 3 from the Sundial paper: zero-shot MSE comparing TimeFlow, Diffusion, and plain MSE on the same backbone and pre-training scale.</figcaption>
 </figure>
 
@@ -57,7 +57,7 @@ If TimeFlow were doing something transformative, replacing it with a plain MSE h
 Even more telling is **Table 7** (zero-shot CRPS across the same six TSLib datasets and GIFT-Eval):
 
 <figure>
-  <a href="{{ '/assets/img/posts/sundial-table7.png' | relative_url }}" title="Open full size"><img src="{{ '/assets/img/posts/sundial-table7.png' | relative_url }}" alt="Table 7 from Sundial: zero-shot CRPS across ETTh1, ETTh2, ETTm1, ETTm2, ECL, Weather, and GIFT-Eval comparing TimeFlow Loss, Diffusion Loss, and MSE Loss." width="2054" height="372" loading="lazy"></a>
+  <a href="{{ '/assets/img/posts/timeflow-sundial/sundial-table7.png' | relative_url }}" title="Open full size"><img src="{{ '/assets/img/posts/timeflow-sundial/sundial-table7.png' | relative_url }}" alt="Table 7 from Sundial: zero-shot CRPS across ETTh1, ETTh2, ETTm1, ETTm2, ECL, Weather, and GIFT-Eval comparing TimeFlow Loss, Diffusion Loss, and MSE Loss." width="2054" height="372" loading="lazy"></a>
   <figcaption>Table 7 from the Sundial paper: zero-shot CRPS comparing TimeFlow Loss, Diffusion Loss, and MSE Loss.</figcaption>
 </figure>
 
