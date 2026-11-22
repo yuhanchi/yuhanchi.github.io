@@ -150,11 +150,12 @@ $$
 
 满足一次齐次的 $$g$$ 有很多种，例如 $$g(S)=\|S\|_F$$。它们都能消除对状态整体尺度的依赖，但未必会得到我们想要的方向。要选择 $$g$$，还需要一个目标。
 
-沿着 [TTT](https://arxiv.org/abs/2407.04620) 和 [Test-Time Regression](https://arxiv.org/abs/2501.12352) 的视角，DeltaNet 是单步回归损失 $$\frac12\|Sk-v\|^2$$ 上的一步 SGD。这里给回归加一个全局校准变量：
+沿着 [TTT](https://arxiv.org/abs/2407.04620) 和 [Test-Time Regression](https://arxiv.org/abs/2501.12352) 的视角，DeltaNet 是单步回归损失 $$\frac12\|Sk-v\|_2^2$$ 上的一步 SGD。但细想一下，写入端和读出端的优化目标其实并不一样。
+
+对于写入对 $$(k, v)$$，我们希望 $$S k$$ 尽可能贴近 $$v$$：
 
 $$
-F(S,c)=\frac12\mathbb E\|cSk-v\|_2^2,\qquad c>0.
-\tag{8}
+\min_S \;\; \mathbb{E}\,\|S k - v\|_2^2. \tag{Goal 1}
 $$
 
 记
@@ -167,7 +168,27 @@ $$
 
 下文谈到方向偏差，都以这个平稳回归解 $$P^*$$ 为参照。真实序列需要追踪变化，未必应该始终保留这个解。
 
-令 $$P=cS$$，式 (8) 就是普通最小二乘；固定任意 $$c$$，最优解都是 $$S=P^*/c$$。引入 $$c$$ 的用处，是把读出不在乎的共同尺度单独写出来。
+而对于读出对 $$(q, o^\star)$$（这里 $$o$$ 既代表 *oracle* 又代表 *output*），因为 $$S q$$ 紧接着就要经过 RMSNorm 把长度扔掉，我们真正关心的其实是输出**有没有指对方向**：
+
+$$
+\max_S \;\; \mathrm{sim}(S q,\; o^\star). \tag{Goal 2}
+$$
+
+这里的“最大化相似度”可以写成很多等价形式：
+
+- 余弦相似度：$$\max\; \cos\angle(S q,\; o^\star)$$；
+- 归一化距离：$$\min\; \|\operatorname{RMSNorm}(S q) - \operatorname{RMSNorm}(o^\star)\|_2^2$$；
+- 或者任何只依赖于正射线 $$\{a\, S q : a > 0\}$$ 的目标函数。
+
+假设我们达成了 Goal 1，并且也认同 $$(q, o^\star)$$ 在某种意义上就是另一组 $$(k, v)$$（即理想读出满足 $$o^\star = P^* q$$），那么把 Goal 1 训好，自然会推导出 Goal 2。
+
+反过来呢？Goal 1 显然太强了：Goal 2 根本不在乎输出乘上任何正标量，直觉上每个查询似乎都可以接受各自不同的缩放因子。但这并不意味着没法从 Goal 2 往回推——第 2 节的引理已经说明，一旦要求 Goal 2 对**所有**查询都成立，逐查询的自由度就会瞬间坍缩成**唯一一个全局正尺度** $$c > 0$$。这就给出了带缩放校准的目标 **Goal \***：
+
+$$
+\boxed{\ \min_{S,\; c > 0}\; F(S, c) = \frac{1}{2}\,\mathbb{E}\,\|c\, S k - v\|_2^2\ } \tag{Goal *}
+$$
+
+如果只看解集，Goal \* 并没有什么新鲜的：令 $$P = c S$$，它就是普通最小二乘；固定任意 $$c > 0$$，最优解都是 $$S = P^* / c$$，彼此只差一个正标量，全部落在同一条射线 $$\{a P^* : a > 0\}$$ 上。Goal \* 真正增加的是**几何**——它把读出层唯一不在乎的那个共同尺度显式写成了变量。
 
 它满足 $$F(\lambda S,c/\lambda)=F(S,c)$$。对 $$\lambda$$ 求导，得到欧拉恒等式：
 
@@ -177,7 +198,7 @@ $$
 =c\,\partial_cF
 =c\left(c\langle S,S\Sigma\rangle_F-\langle S,C\rangle_F\right).
 }
-\tag{9}
+\tag{8}
 $$
 
 左边测量梯度沿状态自身方向的分量，也就是让状态变长或变短的部分。它恰好由尺度校准误差控制。取当前最优尺度
@@ -186,7 +207,7 @@ $$
 c^*(S)=\frac{\langle S,C\rangle_F}{\langle S,S\Sigma\rangle_F},
 \qquad
  g^*(S)=\frac1{c^*(S)},
-\tag{10}
+\tag{9}
 $$
 
 就有 $$\partial_cF=0$$，总体梯度与 $$S$$ 正交。以下在正尺度解存在的区域讨论这些公式。
@@ -197,7 +218,7 @@ $$
 \boxed{
 S_{t+1}=S_t-\beta\big(S_tk_t-g^*(S_t)v_t\big)k_t^\top.
 }
-\tag{11}
+\tag{10}
 $$
 
 它同时具备两条性质。
@@ -209,7 +230,7 @@ $$
 =-\beta\big(S\Sigma-g^*(S)C\big),
 \qquad
 \langle S,\mathbb E[\Delta S\mid S]\rangle_F=0.
-\tag{12}
+\tag{11}
 $$
 
 这里取常数步长，样本来自定义 $$C,\Sigma$$ 的分布。总体不动点满足 $$S\Sigma=g^*(S)C$$，也就是 $$S=g^*(S)P^*$$：落在目标射线上，没有额外的 ridge 项。
@@ -238,7 +259,7 @@ $$
 S_\star=\frac1\alpha C(\Sigma+\lambda I)^{-1},
 \qquad
 \lambda=\frac{1-\alpha}{\alpha\beta}.
-\tag{13}
+\tag{12}
 $$
 
 外面的 $$1/\alpha$$ 不影响归一化读出；里面的 ridge 项则通常会改变方向。
@@ -250,7 +271,7 @@ $$
 \frac{p_1}{p_1+\lambda},\,
 \frac{p_2}{p_2+\lambda}
 \right).
-\tag{14}
+\tag{13}
 $$
 
 若 $$p_1=0.8,p_2=0.2,\lambda=0.2$$，两个系数分别是 $$0.8$$ 和 $$0.5$$。单独查任意一个键，方向仍然正确；但混合查询 $$(e_1+e_2)/\sqrt2$$ 的输出，从理想的 $$45^\circ$$ 偏到了 $$\arctan(0.5/0.8)\approx32^\circ$$。
@@ -271,7 +292,7 @@ $$
 
 $$
 S_R=C(\Sigma+\lambda I)^{-1},\qquad \|S_R\|_F=R.
-\tag{15}
+\tag{14}
 $$
 
 当半径小于无约束最优解的范数时，最优解对应正的 ridge 乘子。仍取上面的两维分布，令 $$R=0.5$$。方向正确的球面点是 $$(0.3536,0.3536)$$，但平方误差更偏爱 $$(0.4667,0.1795)$$：它把有限的长度更多分给了高频方向，混合读出约为 $$21^\circ$$。
@@ -284,7 +305,7 @@ $$
 
 $$
 S^+=\alpha S(I-\beta kk^\top)+\beta g^*(S)vk^\top.
-\tag{16}
+\tag{15}
 $$
 
 定义尺度无关的曲率
@@ -301,7 +322,7 @@ S\propto C(\Sigma+\lambda I)^{-1},
 \qquad
 \lambda=\frac{1-\alpha}{\alpha}\chi(S).
 }
-\tag{17}
+\tag{16}
 $$
 
 <details markdown="1">
@@ -320,7 +341,7 @@ S\left(\Sigma+\frac{\mu-\alpha}{\alpha\beta}I\right)
 =\frac{g^*}{\alpha}C,
 $$
 
-便得到式 (17)。
+便得到式 (16)。
 
 </details>
 
@@ -339,18 +360,18 @@ U_{t+1}=N_F\left[
 U_t(I-\beta_tk_tk_t^\top)
 +\frac{\beta_t\|v_t\|_2}{\alpha_t r_t}\widehat v_tk_t^\top
 \right],
-\tag{18}
+\tag{17}
 $$
 
 其中 $$N_F(X)=X/\|X\|_F$$。因此 $$\beta_t\|v_t\|_2/(\alpha_t r_t)$$ 控制新写入相对于旧状态有多强。遗忘门既改变旧内容的权重，又通过状态长度影响后续更新。
 
-齐次更新则不同。令 $$g(rU)=rg(U)$$，暂取 $$\alpha=1$$，式 (11) 变成
+齐次更新则不同。令 $$g(rU)=rg(U)$$，暂取 $$\alpha=1$$，式 (10) 变成
 
 $$
 U^+=N_F(U-\beta H),
 \qquad
 H=(Uk-g(U)v)k^\top.
-\tag{19}
+\tag{18}
 $$
 
 半径 $$r$$ 消失了。将 $$H$$ 分成径向与切向两部分，$$H=\xi U+H^\perp$$，其中 $$\xi=\langle U,H\rangle_F$$，则状态方向的转角为
@@ -359,18 +380,18 @@ $$
 \theta=\operatorname{atan2}\left(
 \beta\|H^\perp\|_F,\,1-\beta\xi
 \right).
-\tag{20}
+\tag{19}
 $$
 
 $$\beta$$ 是一个不依赖状态整体尺度的方向更新系数；转多少还取决于残差与对齐关系。精确总体校准使期望径向分量为零，但不要求每一步都纯切向。
 
-从目标函数看，消去 $$c$$ 后的 $$G(S)=F(S,c^*(S))$$ 满足 $$G(\lambda S)=G(S)$$。不过，固定欧氏步长的梯度下降还不够：$$\nabla G(\lambda S)=\lambda^{-1}\nabla G(S)$$。式 (11) 实际对应
+从目标函数看，消去 $$c$$ 后的 $$G(S)=F(S,c^*(S))$$ 满足 $$G(\lambda S)=G(S)$$。不过，固定欧氏步长的梯度下降还不够：$$\nabla G(\lambda S)=\lambda^{-1}\nabla G(S)$$。式 (10) 实际对应
 
 $$
 \nabla G(S)=(c^*)^2(S\Sigma-g^*C),
 \qquad
 S^+=S-\frac{\beta}{(c^*)^2}\nabla G(S).
-\tag{21}
+\tag{20}
 $$
 
 是这个步长预条件，让更新也具有了需要的一次齐次性。
@@ -389,12 +410,12 @@ $$
 P^+=a\big[P-\beta ek^\top\big],
 \qquad
 a=\exp(-\eta z^\top e).
-\tag{22}
+\tag{21}
 $$
 
 这正是表格左下角：$$a$$ 同时缩放保留的旧状态和新写入。预测沿自身方向偏大时缩小，偏小时放大。它调整整张状态与后续写入之间的尺度关系。
 
-**消去 $$c$$。** 取式 (10) 的 $$c^*(S)$$，使用式 (11) 的齐次校准更新。总体更新不再拟合无关的状态长度，也不额外引入 ridge。用平滑统计量估计 $$g^*$$，例如 $$\operatorname{EMA}(\|Sk\|^2)/\operatorname{EMA}((Sk)^\top v)$$，则得到介于在线学习与总体最优响应之间的方案。
+**消去 $$c$$。** 取式 (9) 的 $$c^*(S)$$，使用式 (10) 的齐次校准更新。总体更新不再拟合无关的状态长度，也不额外引入 ridge。用平滑统计量估计 $$g^*$$，例如 $$\operatorname{EMA}(\|Sk\|^2)/\operatorname{EMA}((Sk)^\top v)$$，则得到介于在线学习与总体最优响应之间的方案。
 
 这三种方案处理的是校准。是否额外衰减旧状态，是可以另行决定的事。
 
