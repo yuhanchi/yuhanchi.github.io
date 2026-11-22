@@ -8,17 +8,18 @@ math: true
 published: true
 ---
 
-Lately I have been reading recent work on linear attention and pretraining optimizers—especially Kaiyue Wen's [Hyperball Optimization](https://arxiv.org/abs/2606.16899) and Jianlin Su's [*From Parameter Symmetry to Effective Learning Rates*](https://spaces.ac.cn/archives/11985). That made me wonder: if linear attention can be read as Test-Time Training, how should its inner optimizer handle scale?
+Lately I have been reading some work on Linear Attention and pretraining optimizers, which got me wondering: if Linear Attention can be viewed as Test-Time Training, how should its inner optimizer handle scale? Going a step further, does this Linear Attention block share some of the same nice properties—such as scale structure or symmetry?
 
-The starting observation is simple: **if you rescale the whole state matrix, the normalized readout does not change—yet updating both states with the same key-value pair usually gives different outputs.**
+My short answer, worked out below: plain DeltaNet runs SGD on an inner loss that is not scale-invariant; once the write is calibrated, the update becomes preconditioned gradient descent on a scale-invariant loss—the inner-loop analogue of the scale-invariant weights studied in effective-learning-rate theory ([Wen et al.](https://arxiv.org/abs/2606.16899); [Su](https://spaces.ac.cn/archives/11985)).
 
-The reason sits right inside the recurrence. The old state scales up with the multiplier, while the newly written term keeps its original magnitude. The scale that the readout threw away sneaks straight back into the next step.
+## 1. Scale in the Update?
 
-Below, we follow this single mismatch to see what calibration, forgetting, and state normalization are each doing. Throughout the post, we assume only that keys $$k$$ are unit-normalized, that the readout $$Sq$$ passes through RMSNorm, and that RMSNorm is treated as an exact scale-invariant map.
+<figure>
+  <a href="{{ '/assets/img/posts/optimizer-inside-linear-attention/linear-attention.png' | relative_url }}" title="Open full size"><img src="{{ '/assets/img/posts/optimizer-inside-linear-attention/linear-attention.png' | relative_url }}" alt="Modern Linear Attention (Gated Delta Rule) block diagram: q and k pass through Linear, Conv, SiLU, and L2 normalization; v passes through Linear, Conv, and SiLU; alpha and beta come from linear projections; all feed into the Gated Delta Rule, followed by Zero-Centered RMSNorm, multiplication with the SiLU output gate, and a final Linear layer." width="613" height="576" loading="lazy"></a>
+  <figcaption>Architecture of a modern Linear Attention (Gated Delta Rule) block: \(q, k\) are L2-normalized, and the state readout passes through RMSNorm before the output gate.</figcaption>
+</figure>
 
-## 1. Readout Ignores Scale—Why Does the Update Care?
-
-The state is a matrix $$S_t\in\mathbb R^{d_v\times d_k}$$. At each step, we receive a key-value pair $$(k_t,v_t)$$, update the state, and read it out with a query $$q_t$$:
+Look closely at the diagram above. The state is a matrix $$S_t\in\mathbb R^{d_v\times d_k}$$. At each step, we receive a key-value pair $$(k_t,v_t)$$, update the state, and read it out with a query $$q_t$$:
 
 $$
 S_{t+1}=\alpha_t S_t(I-\beta_t k_tk_t^\top)+\gamma_t v_tk_t^\top,
@@ -27,7 +28,7 @@ S_{t+1}=\alpha_t S_t(I-\beta_t k_tk_t^\top)+\gamma_t v_tk_t^\top,
 \tag{1}
 $$
 
-For now, treat $$\alpha_t,\beta_t,\gamma_t$$ as three independent scalars—without tying them together or letting them depend on the state's overall scale. Here $$0<\alpha_t\le1$$ controls how much of the old state is retained, $$\beta_t$$ controls erasure strength, and $$\gamma_t$$ controls write strength. Expanding Eq. (1):
+First treat $$\alpha_t,\beta_t,\gamma_t$$ as three independent coefficients without making any assumptions about them yet. At a basic semantic level, $$\alpha_t$$ controls how much of the old state is retained, $$\beta_t$$ controls the erasure strength, and $$\gamma_t$$ represents the write strength. Expanding the update:
 
 $$
 S_{t+1}
@@ -40,11 +41,9 @@ S_{t+1}
 \tag{2}
 $$
 
-Here "state" means the matrix $$S$$, "update" means the full recurrence, and "write" refers only to the final additive term. The erasure term subtracts part of the old state's response along the current key; the forget gate $$\alpha_t$$ scales the entire old state uniformly.
+As labeled in Eq. (2), we call the matrix $$S_t$$ the state, the $$-\alpha_t\beta_t(S_tk_t)k_t^\top$$ term the erasure, and the final $$\gamma_t v_tk_t^\top$$ term the write; the forget gate $$\alpha_t$$ acts on $$S_t(I-\beta_t k_tk_t^\top)$$.
 
-Why call the last term a write? Because $$\|k_t\|_2=1$$, adding $$\gamma_t v_tk_t^\top$$ shifts the prediction $$S_tk_t$$ on the current key by $$\gamma_t v_t$$. For any other query $$q$$, the readout shifts by $$\gamma_t v_t(k_t^\top q)$$: the closer $$q$$ is to $$k_t$$, the larger the change.
-
-Now replace $$S$$ with $$\lambda S$$ for some $$\lambda>0$$. The readout satisfies
+Now replace $$S$$ with $$\lambda S$$, where $$\lambda>0$$. In practice, the readout satisfies
 
 $$
 \operatorname{RMSNorm}(\lambda Sq)
@@ -53,7 +52,8 @@ $$
 \tag{3}
 $$
 
-In the update, however, the first two terms scale by $$\lambda$$ while the last term does not. Letting $$\mathcal T$$ denote the update operator in Eq. (1), we have
+So this thought experiment makes sense. Notice that the first two terms in Eq. (1) scale right along with $$\lambda$$, whereas the final write term does not.
+Writing this more formally: let $$\mathcal T$$ denote the update operator in Eq. (1), then
 
 $$
 \mathcal T(\lambda S)-\lambda\mathcal T(S)
@@ -61,13 +61,13 @@ $$
 \tag{4}
 $$
 
-So two states with identical readouts generally no longer produce identical readouts after the very same update.
+Hence two states with identical readouts usually no longer read out the same after undergoing the same update.
 
 In $$S$$, the old-state terms are degree-1 homogeneous, while the new write is degree-0 homogeneous. **The larger the old state, the harder it is for the same write to move it; the smaller the old state, the easier it is to move.** Even though the state's norm never appears in the current output, it quietly controls how easily the next step can rotate the state's direction.
 
-## 2. You Only Get One Global Scale
+## 2. Two Goals?
 
-Following [TTT](https://arxiv.org/abs/2407.04620) and [Test-Time Regression](https://arxiv.org/abs/2501.12352), plain DeltaNet is one step of SGD on the per-step regression loss $$\frac12\|Sk-v\|_2^2$$. Look a little closer, though, and the writing side and the reading side do not share the same objective.
+Following [TTT](https://arxiv.org/abs/2407.04620) and [Test-Time Regression](https://arxiv.org/abs/2501.12352), plain DeltaNet corresponds to one step of SGD on the per-step regression loss $$\frac12\|Sk-v\|_2^2$$. Look a little closer, though, and the writing side and the reading side do not actually share the same objective.
 
 For a write pair $$(k,v)$$, we want $$Sk$$ as close to $$v$$ as possible:
 
@@ -83,7 +83,7 @@ C=\mathbb E[vk^\top],\qquad
 P^*=C\Sigma^{-1}.
 $$
 
-For a read pair $$(q,o^\star)$$ (where $$o$$ stands for both *oracle* and *output*), $$Sq$$ immediately passes through RMSNorm, which discards its length. What we actually care about is whether the output **points in the right direction**:
+For a read pair $$(q,o^\star)$$ (where $$o$$ stands for both *oracle* and *output*—a small pun), $$Sq$$ immediately passes through RMSNorm, which throws away its length. What we really care about is whether the output **points in the right direction**:
 
 $$
 \max_S \;\; \mathrm{sim}(Sq,\; o^\star). \tag{Goal 2}
@@ -91,7 +91,7 @@ $$
 
 This "maximize similarity" can be written as cosine similarity $$\max\cos\angle(Sq,o^\star)$$, normalized distance $$\min\|\operatorname{RMSNorm}(Sq)-\operatorname{RMSNorm}(o^\star)\|_2^2$$, or any objective depending only on the positive ray $$\{a\,Sq : a>0\}$$.
 
-Suppose we achieve Goal 1 and accept that $$(q,o^\star)$$ is in some sense another $$(k,v)$$ pair (i.e., ideal readout satisfies $$o^\star=P^*q$$); then solving Goal 1 automatically achieves Goal 2. What about the converse? Goal 1 looks too strong: Goal 2 ignores any positive rescaling of the output, so intuitively it might seem that each stored pair could carry its own scale factor.
+Suppose we achieve Goal 1 and also accept that $$(q,o^\star)$$ is in some sense another $$(k,v)$$ pair (i.e., ideal readout satisfies $$o^\star=P^*q$$); then solving Goal 1 naturally implies Goal 2. What about the converse? Goal 1 looks too strong: Goal 2 does not care about multiplying the output by any positive scalar, so intuitively it might seem that each key-value pair could be scaled by a different factor.
 
 Can it? Take two orthogonal keys with linearly independent values $$v_1,v_2$$, and suppose the state satisfies
 
@@ -100,9 +100,9 @@ Sk_1=2v_1,\qquad Sk_2=v_2.
 \tag{5}
 $$
 
-Querying $$k_1$$ or $$k_2$$ individually gives the right direction. Now ask the mixed query $$q=(k_1+k_2)/\sqrt2$$: the output points along $$2v_1+v_2$$ instead of $$v_1+v_2$$. Normalizing at the end cannot fix the wrong ratio between the two terms.
+Querying $$k_1$$ or $$k_2$$ individually gives the right direction. But for the mixed query $$q=(k_1+k_2)/\sqrt2$$, the readout points along $$2v_1+v_2$$ rather than $$v_1+v_2$$. Normalizing at the end cannot remove the mismatched ratio between the two components.
 
-This reflects a simple linear-algebra fact:
+This corresponds to a simple linear-algebra fact:
 
 > **Lemma.** Suppose $$\operatorname{rank}(M)\ge2$$. If for every $$q\notin\ker M$$ the vector $$Sq$$ is a positive multiple of $$Mq$$, then there exists a single global scalar $$c>0$$ such that $$S=cM$$.
 
@@ -120,16 +120,16 @@ so comparing coefficients forces all three scalars to be equal. If two nonzero i
 
 </details>
 
-This is the same fact as "a linear operator for which every vector is an eigenvector must be a scalar multiple of the identity." Here it says: **once queries mix different keys, the only thing you are free to change is a single global scale for the entire state, never the relative proportions across stored pairs.**
-
-Consequently, requiring Goal 2 for **all** queries collapses per-query scale freedom into a single positive scalar $$c>0$$, giving the scale-calibrated objective **Goal \***:
+Inspired by this, it is easy to notice that once Goal 2 must hold for **all** queries, per-query freedom immediately collapses into a single global positive scale $$c>0$$. That lets us design a more interesting—and perhaps more promising—objective, **Goal \***:
 
 $$
 \boxed{\ \min_{S,\; c>0}\; F(S,c)=\frac12\mathbb E\|cSk-v\|_2^2\ }
 \tag{Goal *}
 $$
 
-As a set of solutions, Goal \* invents nothing new: substituting $$P=cS$$ turns it right back into ordinary least squares, and for any fixed $$c>0$$ the minimizer is $$S=P^*/c$$, all lying on the same ray $$\{aP^* : a>0\}$$. What Goal \* adds is **geometry**—it promotes the one global scale that the readout ignores into an explicit variable $$c$$.
+As a set of solutions, Goal \* is actually very simple: setting $$P=cS$$ turns it into ordinary least squares; for any fixed $$c>0$$, the minimizer is $$S=P^*/c$$, all lying on the same ray $$\{aP^* : a>0\}$$. What Goal \* really adds is **geometry**—it promotes the one global scale that the readout ignores into an explicit variable $$c$$.
+
+We will see shortly how Goal \* resolves the troubles from Sections 1 and 2. Section 6 will also show that this choice is not arbitrary: among scalar write factors, the one Goal \* prescribes is the only one whose population fixed direction carries no ridge.
 
 ## 3. Scale the Write Along with the State
 
@@ -159,14 +159,14 @@ This also makes the role of scalar gates clear. We only need to ask two question
 
 | What does the scalar multiply? | Write does not scale with $$S$$: $$vk^\top$$ | Write scales with $$S$$: $$g(S)vk^\top$$ |
 |---|---|---|
-| **Old state only** | GDN's forget gate. Shrinks old state relative to new write while also changing state norm and future step sizes; a constant gate introduces ridge bias. | Still lowers old-state weight relative to new writes, without depending on overall state length. Even after calibration, relative forgetting remains independently controllable. |
-| **Old state and new write together** | Leaves the current readout unchanged, but alters state length and therefore shifts the relative strength of the next write. Global calibration and plain DeltaNet's sphere projection live here. | Pure change of common scale. Future updates scale along with it, so every normalized readout stays completely unchanged. |
+| **Old state only**<br>$$\alpha S(I-\beta kk^\top)+\text{write}$$ | GDN's forget gate. Shrinks old state relative to new write while also changing state norm and future step sizes; introduces ridge bias when $$\alpha$$ is constant. | Still lowers old-state weight relative to new writes, without depending on overall state length. Even after calibration, relative forgetting remains independently controllable. |
+| **Old state and new write together**<br>$$a\big[S(I-\beta kk^\top)+\text{write}\big]$$ | Leaves the current readout unchanged, but alters state length and therefore shifts the relative strength of the next write. Global calibration and plain DeltaNet's sphere projection live here. | Pure change of common scale. Future updates scale along with it, so every normalized readout stays completely unchanged. |
 
 The top row alters the balance between old and new content; the bottom row alters the shared scale of the whole state. In the left column, that shared scale still leaks into the next update; in the right column, that leakage is gone.
 
-Notice the bottom-right cell in particular: once the update is 1-homogeneous, multiplying by a positive scalar at the end of every step—or projecting the state onto a fixed-radius sphere—does not change the readout trajectory at all. Induction proves it in one line: if two trajectories differ by a factor of $$\lambda$$, they still differ by $$\lambda$$ after the next update, and renormalizing only swaps one positive factor for another.
+Perhaps the best-behaved cell is the bottom right: once the update is 1-homogeneous, multiplying by a positive scalar at the end of every step—or projecting the state onto a fixed-radius sphere—does not change the readout trajectory at all. Induction proves it in one line: if two trajectories differ by a factor of $$\lambda$$, they still differ by $$\lambda$$ after the next update, and renormalizing only swaps one positive factor for another.
 
-Throughout this post, "forgetting" refers to lowering the weight of the entire old state relative to the new write. Erasure along the current key also overwrites past associations, acting as a targeted local edit along one direction.
+Note: "forgetting" here refers to globally lowering the weight of the old state relative to the new write; erasure along the current key is a targeted local edit along a single direction.
 
 <details markdown="1">
 <summary>An equivalent view: decaying the old state is boosting future writes</summary>
@@ -179,7 +179,7 @@ Q_{t+1}=Q_t(I-\beta_tk_tk_t^\top)
 \tag{7}
 $$
 
-The explicit forget gate vanishes, turning into an ever-growing multiplier on later writes. When $$\alpha_t<1$$, $$\kappa_{t+1}=\prod_{s\le t}\alpha_s$$ keeps shrinking. Under normalized readout, "continuously decaying the old state" and "continuously amplifying newer writes" trace out the exact same trajectory. Because this multiplier accumulates all past forget gates, the single-step norm $$\|v_t\|$$ alone cannot express it.
+The explicit forget gate vanishes, turning into an ever-growing multiplier on later writes. When $$\alpha_t<1$$, $$\kappa_{t+1}=\prod_{s\le t}\alpha_s$$ keeps shrinking. Under normalized readout, "continuously decaying the old state" and "continuously amplifying newer writes" trace out the exact same trajectory. Because this multiplier accumulates all past forget gates, the single-step norm $$\|v_t\|$$ alone cannot replace it.
 
 </details>
 
@@ -214,7 +214,7 @@ $$
 
 The outer factor $$1/\alpha$$ is absorbed by RMSNorm, whereas the inner ridge term $$\lambda I$$ generally changes directions.
 
-Take a 2D example. Keys $$e_1,e_2$$ appear with probabilities $$p_1,p_2$$, with matching values $$e_1,e_2$$. Then $$\Sigma=C=\operatorname{diag}(p_1,p_2)$$ and the ideal state is $$P^*=I$$. With the ridge term, up to a common scalar, the fixed point becomes
+Take a 2D example: keys $$e_1,e_2$$ appear with probabilities $$p_1,p_2$$ and serve as their own values, so $$\Sigma=C=\operatorname{diag}(p_1,p_2)$$ and $$P^*=I$$. Up to a common scalar, the fixed point becomes
 
 $$
 \operatorname{diag}\left(
@@ -224,9 +224,9 @@ $$
 \tag{9}
 $$
 
-For $$p_1=0.8,p_2=0.2,\lambda=0.2$$, the two entries are $$0.8$$ and $$0.5$$. Querying $$e_1$$ or $$e_2$$ alone still points in the right direction, but the mixed query $$(e_1+e_2)/\sqrt2$$ tilts from the ideal $$45^\circ$$ down to $$\arctan(0.5/0.8)\approx32^\circ$$.
+With $$p_1=0.8,p_2=0.2,\lambda=0.2$$, the entries are $$0.8$$ and $$0.5$$, so the mixed query $$(e_1+e_2)/\sqrt2$$ tilts from $$45^\circ$$ to about $$32^\circ$$.
 
-Rare keys receive fewer fresh writes while still getting decayed at every step alongside frequent keys, so they are suppressed more strongly. That is the recency ridge bias here. When $$\Sigma$$ is isotropic, the ridge only rescales the whole state; directional tilt comes from anisotropic shrinkage across frequencies.
+Rare keys get fewer fresh writes but are decayed at every step, so they are suppressed more. This is the recency ridge bias; if $$\Sigma$$ is isotropic, the ridge only rescales the whole state.
 
 The equivalence between GDN and regularized regression is established in [Test-Time Regression](https://arxiv.org/abs/2501.12352), and [MIRAS](https://arxiv.org/abs/2504.13173) similarly frames forgetting as retention regularization. What we highlight here is specifically which shrinkages pass through normalized readout as directional bias.
 
@@ -245,9 +245,9 @@ S_R=C(\Sigma+\lambda I)^{-1},\qquad \|S_R\|_F=R.
 \tag{10}
 $$
 
-Whenever the chosen radius $$R$$ is smaller than the unconstrained optimum's norm, the multiplier $$\lambda$$ is strictly positive. In the same 2D distribution with $$R=0.5$$, the direction-preserving point on the sphere is $$(0.3536,0.3536)$$ ($$45^\circ$$), yet squared error prefers $$(0.4667,0.1795)$$: it spends more of its limited norm budget on the high-frequency direction, tilting the mixed readout to about $$21^\circ$$.
+Only the sign of $$\lambda$$ matters. If $$R<\|P^*\|_F$$, then $$\lambda>0$$ and rare directions are suppressed, as in GDN (in the 2D example with $$R=0.5$$, the mixed readout tilts to about $$21^\circ$$). If $$R>\|P^*\|_F$$, then $$\lambda<0$$ and rare directions are amplified instead.
 
-Both operations produce a similar directional tilt, for completely different reasons: GDN deliberately down-weights older content, whereas sphere projection only tries to fix the norm yet accidentally distorts content ratios along the way.
+Both operations produce a similar directional tilt, for seemingly different reasons: GDN deliberately down-weights older content, whereas sphere projection only tries to fix the norm yet accidentally distorts content ratios along the way. (Section 6 shows that underneath, they share one mechanism.)
 
 For sphere projection, the culprit is that plain regression is still fitting absolute lengths. To make state norm a pure representation convention, we have to move to the right column of the table and scale the write with the state. The next question is: by how much?
 
@@ -321,22 +321,24 @@ where $$N_F(X)=X/\|X\|_F$$. The factor $$\beta_t\|v_t\|_2/(\alpha_t r_t)$$ contr
 A homogeneous update behaves differently. Whenever $$g(rU)=rg(U)$$ (setting $$\alpha=1$$ for now), Eq. (13) reduces to
 
 $$
-U^+=N_F(U-\beta H),
+U_{t+1}=N_F(U_t-\beta H_t),
 \qquad
-H=(Uk-g(U)v)k^\top.
+H_t=\big(U_tk_t-g(U_t)v_t\big)k_t^\top.
 \tag{16}
 $$
 
-The radius $$r$$ drops out completely. Decomposing $$H=\xi U+H^\perp$$ into radial and tangential parts (with $$\xi=\langle U,H\rangle_F$$), the single-step turning angle is
+The radius $$r_t$$ drops out completely. Decomposing $$H_t=\xi_t U_t+H_t^\perp$$ into radial and tangential parts (with $$\xi_t=\langle U_t,H_t\rangle_F$$), the single-step turning angle is
 
 $$
-\theta=\operatorname{atan2}\left(
-\beta\|H^\perp\|_F,\,1-\beta\xi
+\theta_t=\operatorname{atan2}\left(
+\beta\|H_t^\perp\|_F,\,1-\beta\xi_t
 \right).
 \tag{17}
 $$
 
 Now $$\beta$$ is a scale-free directional step coefficient; how far the state rotates depends only on $$\beta$$ and the residual geometry at $$U$$. Exact population calibration zeros out the expected radial component without requiring every single stochastic step to be purely tangential.
+
+This is a change of parameterization rather than a gain in expressivity: at steady state, GDN's $$(\alpha,\beta)$$ can reach essentially the same pairs of ridge and step. The real difference is that GDN's step in Eq. (15) depends on its *history* through $$r_t$$: one burst of large $$\|v_t\|_2$$ weakens writes for many steps afterwards. That norm loop also does something useful, though. Starting from $$S_0=0$$, a small $$r_t$$ gives strong early writes—a free warm-up. After calibration, $$S=0$$ is a fixed point and $$\beta$$ is a constant angular step, so any warm-up or annealing schedule has to be put into $$\beta_t$$ explicitly.
 
 <details markdown="1">
 <summary>Why does a scale-invariant objective still need step-size preconditioning?</summary>
@@ -344,9 +346,9 @@ Now $$\beta$$ is a scale-free directional step coefficient; how far the state ro
 Eliminating $$c$$ gives the reduced objective $$G(S)=F(S,c^*(S))$$, which satisfies $$G(\lambda S)=G(S)$$. Plain fixed-step Euclidean gradient descent on $$G$$ is not enough, however, because $$\nabla G(\lambda S)=\lambda^{-1}\nabla G(S)$$. In population form, Eq. (13) actually corresponds to
 
 $$
-\nabla G(S)=(c^*)^2(S\Sigma-g^*C),
+\nabla G(S)=\big(c^*(S)\big)^2\big(S\Sigma-g^*(S)C\big),
 \qquad
-S^+=S-\frac{\beta}{(c^*)^2}\nabla G(S).
+S_{t+1}=S_t-\frac{\beta}{\big(c^*(S_t)\big)^2}\nabla G(S_t).
 \tag{18}
 $$
 
@@ -354,26 +356,54 @@ It is this step-size preconditioning by $$(c^*)^{-2}$$ that makes the gradient s
 
 </details>
 
-In outer scale-invariant networks, weight decay regulates the effective learning rate through parameter norm without changing the optimal solution set. In plain DeltaNet, the inner regression is not scale-invariant, so forgetting also induces genuine regression shrinkage. Homogeneous calibrated updates strip state length out of the angular step size; if you still want to down-weight older memories, you can add a forget gate separately.
+In outer scale-invariant networks, weight decay regulates the effective learning rate through parameter norm without changing the optimal solution set. In plain DeltaNet, the inner regression is not scale-invariant, so forgetting also induces genuine regression shrinkage. Homogeneous calibrated updates strip state length out of the angular step size; if you still want to down-weight older memories, you can add a forget gate separately—though, as Section 6 shows, it no longer means quite the same thing.
 
 ## 6. Three Calibration Schemes, and an Independent Forget Gate
 
-The optimal scale $$c^*(S)$$ gives us a reference point. There are three straightforward ways to treat the scale variable $$c$$ in Goal \*.
+The $$c^*(S)$$ above gives a reference for calibrating the global scale between the state and the target. There are three natural ways to treat the scale variable $$c$$ in Goal \*. Carrying over the effective state $$P_t=c_tS_t$$ from Section 2 (since $$c_t>0$$, $$P_t$$ and $$S_t$$ share the exact same normalized readout) and using the preconditioned step size $$\beta/c_t^2$$ on $$S_t$$ for the per-step loss $$\ell_t(S,c)=\frac12\|cSk_t-v_t\|_2^2$$ puts all three schemes into the same recurrence notation.
 
-**Fix $$c$$.** Setting $$c=1$$ gives plain DeltaNet, letting state norm adapt on its own to the regression target; adding decay on the old state yields GDN. It is simple, at the cost of keeping directional updates coupled to state length.
-
-**Learn $$c$$.** Update $$S$$ and $$u=\log c$$ jointly on $$F(S,c)$$. Letting $$P=cS$$, $$z=Pk$$, and $$e=z-v$$, using step size $$\beta/c^2$$ on $$S$$ and $$\eta$$ on $$u$$ collapses both updates into a single matrix:
+**Fix $$c$$ in advance.** How should we think about this? First, whatever value this scalar takes does not affect $$P^*$$. It is a bit like playing God—knowing the final $$c$$ in advance like an oracle, almost shooting the arrow first and drawing the target around it. Fixing a constant $$c_t\equiv c>0$$ gives the recurrence
 
 $$
-P^+=a\big[P-\beta ek^\top\big],
+S_{t+1}=S_t(I-\beta k_tk_t^\top)+\frac{\beta}{c}\,v_tk_t^\top,
 \qquad
-a=\exp(-\eta z^\top e).
+P_{t+1}=P_t(I-\beta k_tk_t^\top)+\beta v_tk_t^\top.
 \tag{19}
 $$
 
-This sits in the bottom-left cell of our table: $$a$$ scales the retained state and the new write together—shrinking when the prediction overshoots along its own direction and growing when it undershoots—recalibrating the scale relationship between the state and future writes.
+Rewritten in terms of $$P_t=cS_t$$, the constant $$c$$ cancels out. Setting $$c=1$$ (so $$P_t=S_t$$) gives plain DeltaNet, letting state length adapt on its own to the regression target; multiplying the old state by a decay $$\alpha_t$$ yields GDN ($$S_{t+1}=\alpha_t S_t(I-\beta_t k_tk_t^\top)+\beta_t v_tk_t^\top$$). It is simple, at the cost of keeping directional updates coupled to state length.
 
-**Eliminate $$c$$.** Plugging $$c^*(S)$$ from Eq. (12) into Eq. (13) gives the homogeneous calibrated update, which stops fitting irrelevant absolute lengths and introduces no extra ridge. Estimating $$g^*$$ with smoothed statistics such as $$\operatorname{EMA}(\|Sk\|^2)/\operatorname{EMA}((Sk)^\top v)$$ yields a practical middle ground between one-step online learning and exact population calibration.
+**Learn $$c$$ online.** We learn both parameters of $$F$$—$$S$$ and $$c$$—online at the same time: specifically, updating $$S_t$$ (step size $$\beta/c_t^2$$) and $$u_t=\log c_t$$ (step size $$\eta$$) jointly on the per-step loss $$\ell_t(S,c)$$. Letting $$z_t=c_tS_tk_t=P_tk_t$$ and $$e_t=z_t-v_t$$, the coupled recurrence for $$(S_t,c_t)$$ is
+
+$$
+S_{t+1}=S_t(I-\beta k_tk_t^\top)+\frac{\beta}{c_t}\,v_tk_t^\top,
+\qquad
+c_{t+1}=a_t\,c_t,
+\qquad
+a_t=\exp(-\eta\,z_t^\top e_t).
+\tag{20}
+$$
+
+Multiplying the two updates eliminates $$c_t$$ explicitly and collapses them into a single-matrix recurrence for the effective state $$P_t=c_tS_t$$:
+
+$$
+P_{t+1}=a_t\big[P_t(I-\beta k_tk_t^\top)+\beta v_tk_t^\top\big]
+=a_t\big[P_t-\beta e_tk_t^\top\big].
+\tag{21}
+$$
+
+This sits in the bottom-left cell of our table: $$a_t$$ scales the retained state and the new write together—shrinking when the prediction overshoots along its own direction ($$z_t^\top e_t>0$$) and growing when it undershoots—recalibrating the scale relationship between the state and future writes.
+
+**Compute $$c$$ on the fly.** At each step, take the instantaneous optimal scale $$c_t=c^*(S_t)$$ from Eq. (12) (so $$g^*(S_t)=1/c^*(S_t)$$). Plugging it into the same preconditioned step recovers the homogeneous calibrated update (13); written in terms of $$P_t=c^*(S_t)S_t$$, it is equivalent to taking one ordinary update $$\widetilde P_{t+1}=P_t(I-\beta k_tk_t^\top)+\beta v_tk_t^\top$$ and immediately rescaling by its optimal scale:
+
+$$
+S_{t+1}=S_t(I-\beta k_tk_t^\top)+\beta\,g^*(S_t)\,v_tk_t^\top,
+\qquad
+P_{t+1}=c^*(\widetilde P_{t+1})\,\widetilde P_{t+1}.
+\tag{22}
+$$
+
+The population update stops fitting irrelevant state lengths and introduces no extra ridge. AI suggests estimating $$g^*$$ with smoothed statistics—for example, $$\hat g_t=\operatorname{EMA}(\|S_tk_t\|_2^2)/\operatorname{EMA}((S_tk_t)^\top v_t)$$ in place of $$g^*(S_t)$$ above—giving a middle ground between online learning and exact population best response; that seems reasonable to me.
 
 All three schemes address calibration. Whether to additionally decay the old state is a separate decision.
 
@@ -382,8 +412,8 @@ All three schemes address calibration. Whether to additionally decay the old sta
 Consider the top-right cell of the table: combine exact calibrated writing with decay applied only to the old state,
 
 $$
-S^+=\alpha S(I-\beta kk^\top)+\beta g^*(S)vk^\top.
-\tag{20}
+S_{t+1}=\alpha S_t(I-\beta k_tk_t^\top)+\beta g^*(S_t)v_tk_t^\top.
+\tag{23}
 $$
 
 Define the scale-free directional curvature
@@ -392,7 +422,7 @@ $$
 \chi(S)=\frac{\langle S,S\Sigma\rangle_F}{\|S\|_F^2}.
 $$
 
-Solving for a directional fixed point $$\mathbb E[S^+\mid S]=\mu S$$ of the population update gives
+Solving for a directional fixed point $$\mathbb E[S_{t+1}\mid S_t=S]=\mu S$$ of the population update gives
 
 $$
 \boxed{
@@ -400,48 +430,86 @@ S\propto C(\Sigma+\lambda I)^{-1},
 \qquad
 \lambda=\frac{1-\alpha}{\alpha}\chi(S).
 }
-\tag{21}
+\tag{24}
+$$
+
+This ridge no longer depends on the state's length, yet it still changes the relative weights across directions: calibration removes artifacts of arbitrary scale, not forgetting itself.
+
+What does change is the meaning of $$\alpha$$. Since Eq. (23) is 1-homogeneous, a global factor does not affect the readout, so Eq. (23) is equivalent to
+
+$$
+S_{t+1}=S_t(I-\beta k_tk_t^\top)+\frac{\beta}{\alpha}\,g^*(S_t)v_tk_t^\top.
+\tag{25}
+$$
+
+Without calibration, the forget gate amplifies later writes cumulatively, by $$1/\prod_{s\le t}\alpha_s$$ (Eq. 7); with calibration, it only boosts the current write by $$1/\alpha_t$$. Its ridge also no longer depends on $$\beta$$, and at the same $$\alpha$$ it is only $$\beta\chi$$ times GDN's ridge in Eq. (8) ($$\beta\chi<1$$ for normalized keys). So $$\alpha$$ has to be re-parameterized, not reused.
+
+### One formula behind every ridge
+
+Eq. (24) is a special case. For any update of the form in Eq. (6), define the *write miscalibration*
+
+$$
+\omega(S)=\frac{\gamma\,g(S)}{\alpha\beta\,g^*(S)},
+$$
+
+that is, what we actually write divided by what Goal \* says we should write, given what we kept. The same calculation gives
+
+$$
+\boxed{
+S\propto C(\Sigma+\lambda I)^{-1},
+\qquad
+\lambda=(\omega-1)\,\chi(S).
+}
+\tag{26}
 $$
 
 <details markdown="1">
-<summary>Two-step derivation</summary>
+<summary>Derivation</summary>
 
-Let $$A=\langle S,S\Sigma\rangle_F$$ and $$B=\langle S,C\rangle_F$$; exact calibration satisfies $$g^*B=A$$. The directional fixed-point equation is
-
-$$
-\alpha S-\alpha\beta S\Sigma+\beta g^*C=\mu S.
-$$
-
-Taking the inner product with $$S$$ yields $$\mu=\alpha+\beta(1-\alpha)\chi$$. Rearranging the equation as
+Let $$A=\langle S,S\Sigma\rangle_F$$ and $$B=\langle S,C\rangle_F$$, so $$g^*B=A$$. The directional fixed-point equation is
 
 $$
-S\left(\Sigma+\frac{\mu-\alpha}{\alpha\beta}I\right)
-=\frac{g^*}{\alpha}C
+\alpha S-\alpha\beta S\Sigma+\omega\alpha\beta g^*C=\mu S.
 $$
 
-immediately gives Eq. (21).
+Taking the inner product with $$S$$ yields $$\mu=\alpha+\alpha\beta(\omega-1)\chi$$. Substituting back and dividing by $$\alpha\beta$$ gives
+
+$$
+S\big(\Sigma+(\omega-1)\chi I\big)=\omega g^*C.
+$$
 
 </details>
 
-This ridge strength no longer depends on the state's overall length, yet it still alters the relative weights across directions. Calibration removes artifacts of arbitrary scale; it does not eliminate forgetting itself.
+Every ridge in this post is one value of $$\omega$$:
 
-So the top-right cell does not force the model to keep all old content—it simply makes forgetting independent of whatever state norm happens to be chosen.
+| Case | $$\omega$$ | $$\lambda$$ |
+|---|---|---|
+| Calibrated, Eq. (13) | $$1$$ | $$0$$ |
+| Calibrated + forget gate, Eq. (23) | $$1/\alpha$$ | $$(1-\alpha)\chi/\alpha$$, i.e. Eq. (24) |
+| GDN, Eq. (8) | $$1/(\alpha g^*(S_\star))$$ | $$(1-\alpha)/(\alpha\beta)$$, i.e. Eq. (8) |
+| Sphere projection, Eq. (10) | $$1/g^*(S_R)$$ | $$(B-A)/R^2$$, i.e. the Lagrange multiplier |
 
-## 7. What Changes Should Be Left to Forgetting?
+So $$\lambda=0$$ exactly when $$\omega=1$$: the calibrated $$g^*$$ is the only scalar write factor with no ridge. Otherwise, only the sign matters: $$\omega>1$$ gives $$\lambda>0$$ and suppresses rare directions (GDN, a small sphere); $$\omega<1$$ gives $$\lambda<0$$ and amplifies them (a large sphere). GDN and the sphere thus share one mechanism, a miscalibrated write; they differ only in what sets $$\omega$$—the gate or the radius.
 
-Channel-wise gates apply different decay rates to different features. By Section 2, this generally changes the readout direction on mixed queries, so it modifies stored content rather than acting as a harmless common scale. Its role is feature-selective forgetting; which directions ought to be kept depends on the task.
+Like $$P^*$$ itself, all of this concerns population fixed points under a stationary distribution.
 
-Likewise, targets drift in real sequences, and the stationary $$P^*$$ is only an analytical reference. The goal is not to eliminate every ridge, but to tell apart whether suppressing a direction serves to track new information or is merely an unintended byproduct of scale bookkeeping.
+## 7. Takeaway
 
-The readout ignores a common scale, and the update can respect that same symmetry. **Scaling the old state and the new write together turns state length into a pure convention, leaving the balance between old and new content to forgetting.**
+- **Readout leaves one global scale free; plain DeltaNet's write breaks it.** RMSNorm makes the readout invariant to $$S\mapsto\lambda S$$, and once queries mix different keys, the lemma says this single global scale $$c>0$$ is the only freedom readout allows—hence Goal \*, $$F(S,c)=\frac12\mathbb E\|cSk-v\|_2^2$$. In plain DeltaNet, however, the old state is degree-1 homogeneous and the write is degree-0 homogeneous, so state length quietly controls how strongly each new write moves the state.
+- **Directional bias is write miscalibration.** For any scalar-gated delta update, population directional fixed points satisfy $$S\propto C(\Sigma+\lambda I)^{-1}$$ with $$\lambda=(\omega-1)\chi(S)$$, where $$\omega$$ is the actual write strength relative to the one Goal \* prescribes. Calibration ($$\omega=1$$) is the only ridge-free choice; GDN's recency ridge, the sphere trap (of either sign), and calibrated forgetting are all values of $$\omega$$.
+- **Calibration changes what a forget gate is.** Without calibration, $$\alpha_t$$ acts as a cumulative write amplification $$1/\prod_s\alpha_s$$, and its ridge depends on both $$\alpha$$ and $$\beta$$. With it, global decay is pure gauge: $$\alpha_t$$ survives only as an instantaneous write emphasis $$1/\alpha_t$$, its ridge $$(1-\alpha)\chi/\alpha$$ no longer depends on $$\beta$$, and $$\beta$$ becomes a scale-free directional step size. At the same $$\alpha$$, it forgets about $$1/(\beta\chi)$$ times less, so $$\alpha$$ has to be re-parameterized, not reused. This is a cleaner parameterization rather than extra expressivity, and the free warm-up of GDN's norm loop must then be written into $$\beta_t$$ explicitly.
+- **So the optimizer inside calibrated linear attention is preconditioned descent on a scale-invariant loss.** Plain DeltaNet is SGD on an inner loss that is not scale-invariant; the calibrated update is $$(c^*)^{-2}$$-preconditioned descent on the scale-invariant $$G$$ of Eq. (18)—the same kind of object studied in effective-learning-rate theory for outer networks, with forgetting as a separate, explicit choice.
 
-## 8. Takeaway
+All of these are statements about population fixed points under stationarity, the same frame in which $$P^*$$ is defined.
 
-- **One symmetry mismatch drives most of the behavior.** RMSNorm makes the readout invariant to $$S\mapsto\lambda S$$, whereas in plain DeltaNet the old state is degree-1 homogeneous and the write is degree-0 homogeneous—so state length quietly controls how strongly each new write moves the state.
-- **Readout only leaves one global scale free (Goal \*).** Once queries mix different keys, per-memory scale differences leak into readout directions. All queries share only a single global scale $$c>0$$, leading directly to the calibrated regression objective $$F(S,c)=\frac12\mathbb E\|cSk-v\|_2^2$$.
-- **The $$2\times 2$$ table separates calibration from forgetting.** Multiplying only the old state shifts the balance between old and new content (forgetting), while multiplying old and new together changes the shared scale; whether the write scales homogeneously as $$g(S)vk^\top$$ determines if that shared scale leaks into the next directional update.
-- **Separate intentional forgetting from scale-bookkeeping artifacts.** A gate $$\alpha<1$$ on the old state alone always produces a ridge—even after exact homogeneous calibration, except its strength no longer depends on state norm. By contrast, the ridge from locking plain DeltaNet onto a sphere is purely an artifact of a non-homogeneous write; once the update is 1-homogeneous, sphere projection becomes a harmless gauge convention.
-- **Effective learning rates decouple cleanly.** In GDN, $$\alpha_t$$ simultaneously regulates directional step size via state norm and decays older content. Aligning both the inner objective and the update with readout scale symmetry makes $$\beta$$ a scale-free directional step size, leaving the forget gate with the single job of deciding how much past content to retain.
+### A Simpler Analogy: Mixing a Drink
+
+Setting matrices and equations aside for a moment, picture **repeatedly adding ingredients to a pitcher of mixed drink**:
+
+- **RMSNorm only sees direction** $$=$$ when you taste the drink, you only care about the **recipe ratio** (say, 1:1 sugar to tea), not whether the pitcher holds 1 liter or 2 liters in total (the common scale);
+- **The lemma in Section 2** $$=$$ if you taste sugar water or tea by themselves, doubling one does not matter; once they are mixed in the same cup, you cannot double the sugar without doubling the tea—the only change that preserves the flavor is scaling the entire pitcher uniformly;
+- **The symmetry mismatch in Section 1** $$=$$ every new write adds one fixed-size scoop: when the pitcher only has half a cup left, one scoop dramatically shifts the flavor; when the pitcher is already full, the exact same scoop barely registers—so "how much liquid is currently in the pitcher (state norm)" silently governs how much each new piece of information moves the flavor;
+- **Homogeneous calibration vs. forgetting** $$=$$ **calibration** swaps in a larger or smaller scoop proportional to the current volume in the pitcher so total volume genuinely stops mattering; **forgetting ($$\alpha<1$$)** pours out part of the old drink before adding the new scoop, deliberately fading old flavors so newer ones carry more weight.
 
 ---
 
