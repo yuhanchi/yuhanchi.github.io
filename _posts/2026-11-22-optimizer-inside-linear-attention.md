@@ -17,7 +17,7 @@ Lately I have been reading some work on Linear Attention and pretraining optimiz
 
 <figure>
   <a href="{{ '/assets/img/posts/optimizer-inside-linear-attention/linear-attention.png' | relative_url }}" title="Open full size"><img src="{{ '/assets/img/posts/optimizer-inside-linear-attention/linear-attention.png' | relative_url }}" alt="Modern Linear Attention (Gated Delta Rule) block diagram: q and k pass through Linear, Conv, SiLU, and L2 normalization; v passes through Linear, Conv, and SiLU; alpha and beta come from linear projections; all feed into the Gated Delta Rule, followed by Zero-Centered RMSNorm, multiplication with the SiLU output gate, and a final Linear layer." width="613" height="576" loading="lazy"></a>
-  <figcaption>Architecture of a modern Linear Attention (Gated Delta Rule) block: \(q, k\) are L2-normalized, and the state readout passes through RMSNorm before the output gate.</figcaption>
+  <figcaption>Architecture of a modern Linear Attention (Gated Delta Rule) block: \(q, k\) are L2-normalized, and the state readout passes through RMSNorm before the output gate. Cropped from the <a href="https://huggingface.co/Qwen/Qwen3-Next-80B-A3B-Thinking">Qwen3-Next-80B-A3B-Thinking</a> model architecture diagram.</figcaption>
 </figure>
 
 Look closely at the diagram above. The state is a matrix $$S_t\in\mathbb R^{d_v\times d_k}$$. At each step, we receive a key-value pair $$(k_t,v_t)$$, update the state, and read it out with a query $$q_t$$:
@@ -521,6 +521,7 @@ Setting matrices and equations aside for a moment, picture **repeatedly adding i
 - Behrouz, A., Razaviyayn, M., Zhong, P., & Mirrokni, V. (2025). [It's All Connected: A Journey Through Test-Time Memorization, Attentional Bias, Retention, and Online Optimization](https://arxiv.org/abs/2504.13173). *arXiv:2504.13173*. (MIRAS)
 - Yang, S., Wang, B., Zhang, Y., Shen, Y., & Kim, Y. (2024). [Parallelizing Linear Transformers with the Delta Rule over Sequence Length](https://arxiv.org/abs/2406.06484). *NeurIPS*. (DeltaNet)
 - Yang, S., Kautz, J., & Hatamizadeh, A. (2025). [Gated Delta Networks: Improving Mamba2 with Delta Rule](https://arxiv.org/abs/2412.06464). *ICLR*. (Gated DeltaNet)
+- Qwen Team (2025). [Qwen3-Next-80B-A3B-Thinking](https://huggingface.co/Qwen/Qwen3-Next-80B-A3B-Thinking). *Hugging Face* (source of the Gated Delta Rule architecture diagram in Section 1).
 - Wen, K., Dang, X., Lyu, K., Ma, T., & Liang, P. (2026). [Fantastic Pretraining Optimizers and Where to Find Them II: Hyperball Optimization](https://arxiv.org/abs/2606.16899). *arXiv:2606.16899*.
 - Su, J. (2026). [From Parameter Symmetry to Effective Learning Rates (《从参数对称性到有效学习率》)](https://spaces.ac.cn/archives/11985). *Scientific Spaces*.
 

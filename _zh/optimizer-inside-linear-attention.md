@@ -18,7 +18,7 @@ preview_alt: "现代 Linear Attention（Gated Delta Rule）模块结构图：q�
 
 <figure>
   <a href="{{ '/assets/img/posts/optimizer-inside-linear-attention/linear-attention.png' | relative_url }}" title="Open full size"><img src="{{ '/assets/img/posts/optimizer-inside-linear-attention/linear-attention.png' | relative_url }}" alt="现代 Linear Attention（Gated Delta Rule）模块结构图：q、k 经卷积、SiLU 与 L2 归一化，与 v、α、β 一同进入 Gated Delta Rule，输出经过 Zero-Centered RMSNorm 与输出门控后再做线性投影。" width="613" height="576" loading="lazy"></a>
-  <figcaption>现代 Linear Attention（Gated Delta Rule）模块结构：\(q, k\) 经 L2 归一化，状态读出后先经过 RMSNorm，再与输出门控相乘。</figcaption>
+  <figcaption>现代 Linear Attention（Gated Delta Rule）模块结构：\(q, k\) 经 L2 归一化，状态读出后先经过 RMSNorm，再与输出门控相乘。架构示意图截取自 <a href="https://huggingface.co/Qwen/Qwen3-Next-80B-A3B-Thinking">Qwen3-Next-80B-A3B-Thinking</a> 模型结构图。</figcaption>
 </figure>
 
 仔细观察上图。状态是一个矩阵 $$S_t\in\mathbb R^{d_v\times d_k}$$。每一步接收一组键值 $$(k_t,v_t)$$，更新状态，再用查询 $$q_t$$ 读出：
@@ -522,6 +522,7 @@ $$
 - Behrouz, A., Razaviyayn, M., Zhong, P., & Mirrokni, V. (2025). [It's All Connected: A Journey Through Test-Time Memorization, Attentional Bias, Retention, and Online Optimization](https://arxiv.org/abs/2504.13173). *arXiv:2504.13173*. (MIRAS)
 - Yang, S., Wang, B., Zhang, Y., Shen, Y., & Kim, Y. (2024). [Parallelizing Linear Transformers with the Delta Rule over Sequence Length](https://arxiv.org/abs/2406.06484). *NeurIPS*. (DeltaNet)
 - Yang, S., Kautz, J., & Hatamizadeh, A. (2025). [Gated Delta Networks: Improving Mamba2 with Delta Rule](https://arxiv.org/abs/2412.06464). *ICLR*. (Gated DeltaNet)
+- Qwen Team (2025). [Qwen3-Next-80B-A3B-Thinking](https://huggingface.co/Qwen/Qwen3-Next-80B-A3B-Thinking). *Hugging Face*（第 1 节 Gated Delta Rule 模块架构示意图来源）。
 - Wen, K., Dang, X., Lyu, K., Ma, T., & Liang, P. (2026). [Fantastic Pretraining Optimizers and Where to Find Them II: Hyperball Optimization](https://arxiv.org/abs/2606.16899). *arXiv:2606.16899*.
 - 苏剑林 (2026). [《从参数对称性到有效学习率》](https://spaces.ac.cn/archives/11985). *科学空间*.
 
