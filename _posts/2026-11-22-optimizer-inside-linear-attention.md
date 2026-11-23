@@ -10,7 +10,7 @@ preview_image: "/assets/img/posts/optimizer-inside-linear-attention/linear-atten
 preview_alt: "Architecture of a modern Linear Attention (Gated Delta Rule) block with L2-normalized queries/keys and RMSNorm readout."
 ---
 
-Lately I have been reading some work on Linear Attention and pretraining optimizers ([Wen et al.](https://arxiv.org/abs/2606.16899); [Su](https://spaces.ac.cn/archives/11985)), which got me wondering: if Linear Attention can be viewed as Test-Time Training, how should its inner optimizer handle scale? Going a step further, does this Linear Attention block share some of the same nice properties—such as scale structure or symmetry?
+Over the past few days, I have been reading some work on Linear Attention and pretraining optimizers ([Wen et al.](https://arxiv.org/abs/2606.16899); [Su](https://spaces.ac.cn/archives/11985)), which got me wondering: if Linear Attention can be viewed as Test-Time Training, how should its inner optimizer handle scale? Going a step further, does this Linear Attention block share some of the same nice properties—such as scale structure or symmetry?
 
 
 ## 1. Scale in the Update?
@@ -44,7 +44,7 @@ $$
 
 As labeled in Eq. (2), we call the matrix $$S_t$$ the state, the $$-\alpha_t\beta_t(S_tk_t)k_t^\top$$ term the erasure, and the final $$\gamma_t v_tk_t^\top$$ term the write; the forget gate $$\alpha_t$$ acts on $$S_t(I-\beta_t k_tk_t^\top)$$.
 
-Now replace $$S$$ with $$\lambda S$$, where $$\lambda>0$$. In practice, the readout satisfies
+Now replace $$S$$ with $$\lambda S$$, where $$\lambda>0$$. Notice that in practice the readout satisfies
 
 $$
 \operatorname{RMSNorm}(\lambda Sq)
@@ -53,7 +53,9 @@ $$
 \tag{3}
 $$
 
-So this thought experiment makes sense. Notice that the first two terms in Eq. (1) scale right along with $$\lambda$$, whereas the final write term does not.
+So the readout is scale-invariant. Looking at the recurrence, though, the state update seems to break that symmetry.
+
+More specifically, the first two terms in Eq. (1) scale right along with $$\lambda$$, whereas the final write term does not.
 Writing this more formally: let $$\mathcal T$$ denote the update operator in Eq. (1), then
 
 $$
@@ -64,7 +66,7 @@ $$
 
 Hence two states with identical readouts usually no longer read out the same after undergoing the same update.
 
-In $$S$$, the old-state terms are degree-1 homogeneous, while the new write is degree-0 homogeneous. **The larger the old state, the harder it is for the same write to move it; the smaller the old state, the easier it is to move.** Even though the state's norm never appears in the current output, it quietly controls how easily the next step can rotate the state's direction.
+In $$S$$, the old-state terms are degree-1 homogeneous, while the new write is degree-0 homogeneous. The intuition is that **the larger the old state, the harder it is for the same write to move it; the smaller the old state, the easier it is to move.** Even though the state's norm never appears in the current output, it quietly controls how easily the next step can rotate the state's direction.
 
 ## 2. Two Goals?
 
@@ -180,7 +182,7 @@ Q_{t+1}=Q_t(I-\beta_tk_tk_t^\top)
 \tag{7}
 $$
 
-The explicit forget gate vanishes, turning into an ever-growing multiplier on later writes. When $$\alpha_t<1$$, $$\kappa_{t+1}=\prod_{s\le t}\alpha_s$$ keeps shrinking. Under normalized readout, "continuously decaying the old state" and "continuously amplifying newer writes" trace out the exact same trajectory. Because this multiplier accumulates all past forget gates, the single-step norm $$\|v_t\|$$ alone cannot replace it.
+The explicit forget gate vanishes, turning into an ever-growing multiplier on later writes. When $$\alpha_t<1$$, $$\kappa_{t+1}=\prod_{s\le t}\alpha_s$$ keeps shrinking. Under normalized readout, "continuously decaying the old state" and "continuously amplifying newer writes" trace out the exact same trajectory. Because this multiplier accumulates all past forget gates, the single-step norm $$\|v_t\|$$ alone cannot replace it. Intuitively, this must also affect the effective learning rate.
 
 </details>
 
@@ -339,7 +341,7 @@ $$
 
 Now $$\beta$$ is a scale-free directional step coefficient; how far the state rotates depends only on $$\beta$$ and the residual geometry at $$U$$. Exact population calibration zeros out the expected radial component without requiring every single stochastic step to be purely tangential.
 
-This is a change of parameterization rather than a gain in expressivity: at steady state, GDN's $$(\alpha,\beta)$$ can reach essentially the same pairs of ridge and step. The real difference is that GDN's step in Eq. (15) depends on its *history* through $$r_t$$: one burst of large $$\|v_t\|_2$$ weakens writes for many steps afterwards. That norm loop also does something useful, though. Starting from $$S_0=0$$, a small $$r_t$$ gives strong early writes—a free warm-up. After calibration, $$S=0$$ is a fixed point and $$\beta$$ is a constant angular step, so any warm-up or annealing schedule has to be put into $$\beta_t$$ explicitly.
+This is a change of parameterization rather than a gain in expressivity: at steady state, GDN's $$(\alpha,\beta)$$ can reach essentially the same pairs of ridge and step. The real difference is that GDN's step in Eq. (15) depends on its *history* through $$r_t$$: one burst of large $$\|v_t\|_2$$ weakens writes for many steps afterwards. That norm loop also does something useful, though. Starting from $$S_0=0$$, a small $$r_t$$ gives stronger early writes. Maybe this acts a bit like a built-in warm-up. After calibration, we may need to schedule $$\beta$$ more explicitly to get that effect.
 
 <details markdown="1">
 <summary>Why does a scale-invariant objective still need step-size preconditioning?</summary>
@@ -357,7 +359,7 @@ It is this step-size preconditioning by $$(c^*)^{-2}$$ that makes the gradient s
 
 </details>
 
-In outer scale-invariant networks, weight decay regulates the effective learning rate through parameter norm without changing the optimal solution set. In plain DeltaNet, the inner regression is not scale-invariant, so forgetting also induces genuine regression shrinkage. Homogeneous calibrated updates strip state length out of the angular step size; if you still want to down-weight older memories, you can add a forget gate separately—though, as Section 6 shows, it no longer means quite the same thing.
+In plain DeltaNet, the inner regression is not scale-invariant, so forgetting induces genuine regression shrinkage. Homogeneous calibrated updates strip state length out of the angular step size. If you still want to down-weight older memories, you can add a forget gate separately.
 
 ## 6. Three Calibration Schemes, and an Independent Forget Gate
 
@@ -443,7 +445,7 @@ S_{t+1}=S_t(I-\beta k_tk_t^\top)+\frac{\beta}{\alpha}\,g^*(S_t)v_tk_t^\top.
 \tag{25}
 $$
 
-Without calibration, the forget gate amplifies later writes cumulatively, by $$1/\prod_{s\le t}\alpha_s$$ (Eq. 7); with calibration, it only boosts the current write by $$1/\alpha_t$$. Its ridge also no longer depends on $$\beta$$, and at the same $$\alpha$$ it is only $$\beta\chi$$ times GDN's ridge in Eq. (8) ($$\beta\chi<1$$ for normalized keys). So $$\alpha$$ has to be re-parameterized, not reused.
+Without calibration, the forget gate amplifies later writes cumulatively, by $$1/\prod_{s\le t}\alpha_s$$ (Eq. 7); with calibration, it only boosts the current write by $$1/\alpha_t$$. Its ridge also no longer depends on $$\beta$$, and at the same $$\alpha$$ it is only $$\beta\chi$$ times GDN's ridge in Eq. (8) ($$\beta\chi<1$$ for normalized keys). So $$\alpha$$ needs to be learned again after calibration. The value learned by uncalibrated GDN cannot be carried over directly.
 
 ### One formula behind every ridge
 
@@ -501,8 +503,6 @@ Like $$P^*$$ itself, all of this concerns population fixed points under a statio
 - **Calibration changes what a forget gate is.** Without calibration, $$\alpha_t$$ acts as a cumulative write amplification $$1/\prod_s\alpha_s$$, and its ridge depends on both $$\alpha$$ and $$\beta$$. With it, global decay is pure gauge: $$\alpha_t$$ survives only as an instantaneous write emphasis $$1/\alpha_t$$, its ridge $$(1-\alpha)\chi/\alpha$$ no longer depends on $$\beta$$, and $$\beta$$ becomes a scale-free directional step size. At the same $$\alpha$$, it forgets about $$1/(\beta\chi)$$ times less, so $$\alpha$$ has to be re-parameterized, not reused. This is a cleaner parameterization rather than extra expressivity, and the free warm-up of GDN's norm loop must then be written into $$\beta_t$$ explicitly.
 - **So the optimizer inside calibrated linear attention is preconditioned descent on a scale-invariant loss.** Plain DeltaNet is SGD on an inner loss that is not scale-invariant; the calibrated update is $$(c^*)^{-2}$$-preconditioned descent on the scale-invariant $$G$$ of Eq. (18)—the same kind of object studied in effective-learning-rate theory for outer networks, with forgetting as a separate, explicit choice.
 
-All of these are statements about population fixed points under stationarity, the same frame in which $$P^*$$ is defined.
-
 ### A Simpler Analogy: Mixing a Drink (By Gemini)
 
 Setting matrices and equations aside for a moment, picture **repeatedly adding ingredients to a pitcher of mixed drink**:
@@ -511,6 +511,12 @@ Setting matrices and equations aside for a moment, picture **repeatedly adding i
 - **The lemma in Section 2** $$=$$ if you taste sugar water or tea by themselves, doubling one does not matter; once they are mixed in the same cup, you cannot double the sugar without doubling the tea—the only change that preserves the flavor is scaling the entire pitcher uniformly;
 - **The symmetry mismatch in Section 1** $$=$$ every new write adds one fixed-size scoop: when the pitcher only has half a cup left, one scoop dramatically shifts the flavor; when the pitcher is already full, the exact same scoop barely registers—so "how much liquid is currently in the pitcher (state norm)" silently governs how much each new piece of information moves the flavor;
 - **Homogeneous calibration vs. forgetting** $$=$$ **calibration** swaps in a larger or smaller scoop proportional to the current volume in the pitcher so total volume genuinely stops mattering; **forgetting ($$\alpha<1$$)** pours out part of the old drink before adding the new scoop, deliberately fading old flavors so newer ones carry more weight.
+
+## Future
+
+These observations come from looking at the math and the architecture, and the analysis is about population fixed points under a stationary distribution. My current hunch is that a good linear attention design might decouple state scale, forgetting strength $$\alpha$$, and step size $$\beta$$. State scale should have no hidden effect on the update. Forgetting should be an explicit choice, and $$\beta$$ should only control how far the state turns at each step. That would make it easier to see what each parameter does.
+
+I hope I or someone else gets a chance to test these ideas in experiments.
 
 ---
 
