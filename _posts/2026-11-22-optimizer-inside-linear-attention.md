@@ -123,7 +123,7 @@ so comparing coefficients forces all three scalars to be equal. If two nonzero i
 
 </details>
 
-Inspired by this, it is easy to notice that once Goal 2 must hold for **all** queries, per-query freedom immediately collapses into a single global positive scale $$c>0$$. That lets us design a more interesting—and perhaps more promising—objective, **Goal \***:
+Inspired by this, it is easy to notice that once Goal 2 must hold for **all** queries, per-query freedom immediately collapses into a single global positive scale $$c>0$$. That lets us design a more interesting—and perhaps more promising—objective, **Goal \***, with the **Scale-Calibrated Regression (SCaR) loss**:
 
 $$
 \boxed{\ \min_{S,\; c>0}\; F(S,c)=\frac12\mathbb E\|cSk-v\|_2^2\ }
